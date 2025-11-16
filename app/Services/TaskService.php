@@ -34,4 +34,18 @@ class TaskService
     {
         return Task::all();
     }
+
+    public function updateTask(Task $task, array $data)
+    {
+        $task->update($data);
+
+        if(isset($data['reminders'])) {
+            $task->reminders()->delete();
+            foreach($data['reminders'] as $reminderData) {
+                $task->reminders()->create($reminderData);
+            }
+        }
+
+        return $task;
+    }
 }

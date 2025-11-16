@@ -42,4 +42,28 @@ class TaskController extends Controller
 
         return response()->json($tasks);
     }
+
+    public function update(Request $request, Task $task)
+    {
+        $data = $request->validate([
+            'project_id' => 'sometimes|integer|exists:projects,id',
+            'user_id' => 'sometimes|integer|exists:users,id',
+            'title' => 'sometimes|string',
+            'description' => 'nullable|string',
+            'deadline' => 'nullable|date',
+            'priority' => 'sometimes|in:low,medium,high',
+            'status' => 'sometimes|in:pending,in_progress,completed,overdue',
+            'reminders' => 'nullable|array'
+        ]);
+
+        $updatedTask = $this->service->updateTask($task, $data);
+
+        return response()->json($updatedTask);
+    }
+
+    public function destroy(Task $task)
+    {
+        $task->delete();
+        return response()->json(['message' => 'Task deleted successfully']);
+    }
 }

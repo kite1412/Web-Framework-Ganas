@@ -2,15 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use Notifiable;
+    use Notifiable, HasApiTokens;
 
-    protected $fillable = ['name', 'email', 'password_hash'];
+    protected $fillable = ['name', 'phone_number', 'password_hash'];
+
+    protected $hidden = ['password_hash'];
 
     public function projects() {
         return $this->hasMany(Project::class);

@@ -8,6 +8,12 @@ use Carbon\Carbon;
 
 class ProjectService
 {
+    public function createProject(int $userId, array $data): Project
+    {
+        $data['user_id'] = $userId;
+        return Project::create($data);
+    }
+    
     public function copyProject(Project $project, int $userId): Project
     {
         $newProject = $project->replicate();

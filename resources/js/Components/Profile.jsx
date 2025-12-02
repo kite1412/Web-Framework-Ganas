@@ -25,8 +25,7 @@ export default function Profile({ currentUser, onLogout, onBack }) {
   );
   const [tempUserData, setTempUserData] = useState({
     name: userName,
-    email: currentUser || 'user@example.com',
-    phone: localStorage.getItem('userPhone') || '+62 812-3456-7890',
+    phone_number: currentUser || localStorage.getItem('userPhone') || '081234567890',
     bio: localStorage.getItem('userBio') || 'Task management enthusiast'
   });
 
@@ -40,7 +39,7 @@ export default function Profile({ currentUser, onLogout, onBack }) {
   const handleSaveProfile = () => {
     setUserName(tempUserData.name);
     localStorage.setItem('userName', tempUserData.name);
-    localStorage.setItem('userPhone', tempUserData.phone);
+    localStorage.setItem('userPhone', tempUserData.phone_number);
     localStorage.setItem('userBio', tempUserData.bio);
     setIsEditMode(false);
   };
@@ -48,20 +47,17 @@ export default function Profile({ currentUser, onLogout, onBack }) {
   const handleCancelEdit = () => {
     setTempUserData({
       name: userName,
-      email: currentUser || 'user@example.com',
-      phone: localStorage.getItem('userPhone') || '+62 812-3456-7890',
+      phone_number: currentUser || localStorage.getItem('userPhone') || '081234567890',
       bio: localStorage.getItem('userBio') || 'Task management enthusiast'
     });
     setIsEditMode(false);
   };
 
-  // Get join date (mock - you can replace with real data)
   const joinDate = new Date(2025, 0, 1).toLocaleDateString('en-US', {
     month: 'long',
     year: 'numeric'
   });
 
-  // Get task stats from localStorage
   const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
   const stats = {
     total: tasks.length,
@@ -130,7 +126,7 @@ export default function Profile({ currentUser, onLogout, onBack }) {
               </h1>
               <div className="flex items-center gap-2 text-[#1A1A1A]/60 dark:text-white/60 mb-1 justify-center sm:justify-start">
                 <Mail className="w-4 h-4" />
-                <span className="text-sm">{tempUserData.email}</span>
+                <span className="text-sm">{tempUserData.phone_number}</span>
               </div>
               <div className="flex items-center gap-2 text-[#1A1A1A]/60 dark:text-white/60 justify-center sm:justify-start">
                 <Calendar className="w-4 h-4" />
@@ -205,36 +201,23 @@ export default function Profile({ currentUser, onLogout, onBack }) {
                 />
               </div>
 
-              {/* Email Field (Read-only) */}
-              <div>
-                <label className="block text-[#1A1A1A] dark:text-white text-sm font-medium mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={tempUserData.email}
-                  disabled
-                  className="w-full px-4 py-3 bg-[#F5F5F5] dark:bg-white/5 border border-[#E8E8E8] dark:border-[#333] rounded-xl text-[#1A1A1A] dark:text-white opacity-60 cursor-not-allowed"
-                />
-                <p className="text-xs text-[#1A1A1A]/60 dark:text-white/60 mt-1">
-                  Email cannot be changed
-                </p>
-              </div>
-
-              {/* Phone Field */}
+              {/* Phone Number Field (Primary identifier) */}
               <div>
                 <label className="block text-[#1A1A1A] dark:text-white text-sm font-medium mb-2">
                   Phone Number
                 </label>
                 <input
                   type="tel"
-                  value={tempUserData.phone}
-                  onChange={(e) => setTempUserData({ ...tempUserData, phone: e.target.value })}
+                  value={tempUserData.phone_number}
+                  onChange={(e) => setTempUserData({ ...tempUserData, phone_number: e.target.value })}
                   disabled={!isEditMode}
                   className={`w-full px-4 py-3 bg-[#F5F5F5] dark:bg-white/5 border border-[#E8E8E8] dark:border-[#333] rounded-xl text-[#1A1A1A] dark:text-white focus:outline-none focus:border-[#4CAF50] transition-all ${
                     !isEditMode ? 'opacity-60 cursor-not-allowed' : ''
                   }`}
                 />
+                <p className="text-xs text-[#1A1A1A]/60 dark:text-white/60 mt-1">
+                  Used for login and authentication
+                </p>
               </div>
 
               {/* Bio Field */}

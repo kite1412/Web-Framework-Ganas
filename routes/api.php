@@ -13,11 +13,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('projects')->group(function () {
         Route::post('/', [ProjectController::class, 'store']);  
         Route::post('/copy', [ProjectController::class, 'copy']);
+        Route::post('/{project}/share', [ProjectController::class, 'share']);
     });
     Route::prefix('tasks')->group(function () {
         Route::post('/', [TaskController::class, 'store']);
         Route::put('/{task}', [TaskController::class, 'update']);
         Route::delete('/{task}', [TaskController::class, 'destroy']);
+        Route::post('/{task}/share', [TaskController::class, 'share']);
     });
 });
 

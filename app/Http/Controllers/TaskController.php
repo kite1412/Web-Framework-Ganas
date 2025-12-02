@@ -66,4 +66,22 @@ class TaskController extends Controller
         $task->delete();
         return response()->json(['message' => 'Task deleted successfully']);
     }
+
+    public function share(Request $request, Task $task)
+    {
+        $task->load('project');
+
+        if ($task->project->is_private) {
+            return response()->json([
+                'message' => 'Cannot share task. The project must be public to share tasks.',
+                'error' => 'project_not_public'
+            ], 403);
+        }
+
+        return response()->json([
+            'message' => 'Task shared successfully',
+            'task' => $task,
+            'project' => $task->project
+        ]);
+    }
 }

@@ -49,4 +49,20 @@ class ProjectController extends Controller
 
         return response()->json($projects);
     }
+
+    public function share(Request $request, Project $project)
+    {
+        if ($project->is_private) {
+            return response()->json([
+                'message' => 'Cannot share project. The project must be public to share.',
+                'error' => 'project_not_public'
+            ], 403);
+        }
+
+        return response()->json([
+            'message' => 'Project shared successfully',
+            'project' => $project,
+            'share_link' => url('/shared/project/' . $project->id)
+        ]);
+    }
 }

@@ -5,7 +5,7 @@ import useTheme from "../Components/useTheme";
 export default function RegisterPage({ onNavigate }) {
   const { theme, mounted } = useTheme();
   const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [termsChecked, setTermsChecked] = useState(false);
@@ -42,8 +42,6 @@ export default function RegisterPage({ onNavigate }) {
   return (
     <div className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${theme === "light" ? "bg-gradient-to-br from-white to-[#F5F5F5]" : "bg-gradient-to-br from-[#0F0F0F] to-[#1A1A1A]"}`}>
       <div className={`max-w-md w-full p-8 rounded-2xl shadow-2xl border ${theme === "light" ? "bg-white border-[#E8E8E8]" : "bg-[#161616] border-white/10"} transition-colors duration-300`}>
-        
-        {/* Back Button */}
         <button
           onClick={() => onNavigate("landing")}
           className={`flex items-center mb-6 ${theme === "light" ? "text-gray-600 hover:text-gray-800" : "text-white/70 hover:text-white"}`}
@@ -57,7 +55,6 @@ export default function RegisterPage({ onNavigate }) {
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Full Name */}
           <div className={`flex items-center border rounded-lg p-3 focus-within:ring-2 focus-within:ring-[#4CAF50] transition-colors ${theme === "light" ? "border-gray-300" : "border-white/20"}`}>
             <User className={`w-5 h-5 mr-3 ${theme === "light" ? "text-gray-400" : "text-white/50"}`} />
             <input
@@ -70,20 +67,18 @@ export default function RegisterPage({ onNavigate }) {
             />
           </div>
 
-          {/* Email */}
           <div className={`flex items-center border rounded-lg p-3 focus-within:ring-2 focus-within:ring-[#4CAF50] transition-colors ${theme === "light" ? "border-gray-300" : "border-white/20"}`}>
             <Mail className={`w-5 h-5 mr-3 ${theme === "light" ? "text-gray-400" : "text-white/50"}`} />
             <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="tel"
+              placeholder="Phone Number"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
               className={`w-full flex items-center border rounded-lg p-3 ${theme === "light" ? "text-gray-700" : "text-white bg-transparent"}`}
               required
             />
           </div>
 
-          {/* Password */}
           <div className={`flex items-center border rounded-lg p-3 focus-within:ring-2 focus-within:ring-[#4CAF50] transition-colors ${theme === "light" ? "border-gray-300" : "border-white/20"}`}>
             <Lock className={`w-5 h-5 mr-3 ${theme === "light" ? "text-gray-400" : "text-white/50"}`} />
             <input
@@ -96,7 +91,6 @@ export default function RegisterPage({ onNavigate }) {
             />
           </div>
 
-          {/* Confirm Password */}
           <div className={`flex items-center border rounded-lg p-3 focus-within:ring-2 focus-within:ring-[#4CAF50] transition-colors ${theme === "light" ? "border-gray-300" : "border-white/20"}`}>
             <Lock className={`w-5 h-5 mr-3 ${theme === "light" ? "text-gray-400" : "text-white/50"}`} />
             <input
@@ -109,7 +103,6 @@ export default function RegisterPage({ onNavigate }) {
             />
           </div>
 
-          {/* Terms Checkbox */}
           <label className={`flex items-center space-x-2 ${theme === "light" ? "text-gray-600" : "text-white/70"}`}>
             <input
               type="checkbox"
@@ -122,10 +115,8 @@ export default function RegisterPage({ onNavigate }) {
             </span>
           </label>
 
-          {/* Error Message */}
           {error && <p className="text-red-500 text-sm">{error}</p>}
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
@@ -147,7 +138,6 @@ export default function RegisterPage({ onNavigate }) {
           </button>
         </form>
 
-        {/* Link to Login */}
         <p className={`text-sm mt-4 text-center ${theme === "light" ? "text-gray-600" : "text-white/70"}`}>
           Already have an account?{" "}
           <span

@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { CheckCircle, Bell, Share2, Clock, Sun, Moon, Mail, MapPin, Phone, Facebook, Twitter, Instagram, Linkedin, Github } from "lucide-react";
 import useTheme from "../Components/useTheme";
-import RegisterPage from "./Register"; // import halaman register
+import RegisterPage from "./Register";
 import LoginPage from "./Login";
-import Dashboard from "./Dashboard"; // import halaman dashboard lengkap
+import Dashboard from "./Dashboard";
 
 export default function Home({ onNavigate }) {
   const { theme, toggleTheme, mounted } = useTheme();
-  const [page, setPage] = useState("landing"); // landing | register | login | dashboard
+  const [page, setPage] = useState("landing");
   const [currentUser, setCurrentUser] = useState(null);
 
   const handleNavigate = (target) => {
@@ -32,15 +32,12 @@ export default function Home({ onNavigate }) {
     window.scrollTo(0, 0);
   }, []);
 
-  // Fallback mounted agar halaman Login/Register bisa diakses walau useTheme belum ready
   if (!mounted) return <div style={{ visibility: "hidden" }} />;
 
-  // Render halaman Register
   if (page === "register") {
     return <RegisterPage onNavigate={handleNavigate} />;
   }
 
-  // Render halaman Login
   if (page === "login") {
     return (
       <LoginPage
@@ -54,7 +51,6 @@ export default function Home({ onNavigate }) {
     );
   }
 
-  // Render halaman Dashboard lengkap setelah login
   if (page === "dashboard") {
     return (
       <Dashboard
@@ -65,7 +61,6 @@ export default function Home({ onNavigate }) {
     );
   }
 
-  // Render halaman Landing (default)
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-[#F5F5F5] dark:from-[#0F0F0F] dark:to-[#1A1A1A] transition-colors duration-300">
       {/* Header */}

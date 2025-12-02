@@ -20,7 +20,7 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'phone_number' => 'required|string|unique:users,phone_number',
+            'phone_number' => 'required|string|unique:users,phone_number|regex:/^[0-9+\-\s()]+$/',
             'password' => 'required|string|min:6',
         ]);
 

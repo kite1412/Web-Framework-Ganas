@@ -14,19 +14,29 @@ import {
   Filter,
   Sun,
   Moon,
-  X
+  X,
+  Folder,
+  FolderOpen,
+  Lock,
+  Globe,
+  ChevronRight
 } from 'lucide-react';
 import Profile from '../Components/Profile';
-import ShareTaskPage from './ShareTaskPage';
+import ShareModal from '../Components/ShareModal';
 
 export default function Dashboard({ onNavigate, onLogout, currentUser }) {
+  const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [editingProject, setEditingProject] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [openProjectMenuId, setOpenProjectMenuId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showNotification, setShowNotification] = useState(false);
   const [theme, setTheme] = useState('light');
@@ -35,10 +45,15 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
     localStorage.getItem('userName') || (currentUser ? currentUser.split('@')[0] : 'User')
   );
   const [notifications, setNotifications] = useState([]);
-  const [sharingTaskId, setSharingTaskId] = useState(null);
+  const [shareModal, setShareModal] = useState({ isOpen: false, item: null, itemType: null });
 
-  // Modal form state
-  const [formData, setFormData] = useState({
+  const [projectFormData, setProjectFormData] = useState({
+    title: '',
+    description: '',
+    is_private: true
+  });
+
+  const [taskFormData, setTaskFormData] = useState({
     title: '',
     description: '',
     deadline: '',
@@ -48,20 +63,42 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
   });
 
   useEffect(() => {
-    // Load theme from localStorage
     const savedTheme = localStorage.getItem('theme') || 'light';
     setTheme(savedTheme);
     document.documentElement.classList.toggle('dark', savedTheme === 'dark');
 
-    // Load tasks from localStorage
+    const savedProjects = localStorage.getItem('projects');
+    if (savedProjects) {
+      setProjects(JSON.parse(savedProjects));
+    } else {
+      const mockProjects = [
+        {
+          id: '1',
+          title: 'Tugas Kuliah',
+          description: 'Project untuk tugas-tugas kuliah',
+          is_private: false,
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: '2',
+          title: 'Tugas Praktikum',
+          description: 'Project untuk tugas praktikum',
+          is_private: true,
+          createdAt: new Date().toISOString()
+        }
+      ];
+      setProjects(mockProjects);
+      localStorage.setItem('projects', JSON.stringify(mockProjects));
+    }
+
     const savedTasks = localStorage.getItem('tasks');
     if (savedTasks) {
       setTasks(JSON.parse(savedTasks));
     } else {
-      // Initial mock data
       const mockTasks = [
         {
           id: '1',
+          project_id: '1',
           title: 'Submit assignment',
           description: 'Complete and submit the final project assignment',
           deadline: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
@@ -72,6 +109,7 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
         },
         {
           id: '2',
+          project_id: '1',
           title: 'Team meeting preparation',
           description: 'Prepare presentation slides for weekly team meeting',
           deadline: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
@@ -82,6 +120,7 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
         },
         {
           id: '3',
+          project_id: '2',
           title: 'Review pull request',
           description: 'Review and approve the authentication feature PR',
           deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
@@ -97,14 +136,12 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
     
     setTimeout(() => setIsLoading(false), 800);
 
-    // Load notifications or create initial ones
     const savedNotifications = localStorage.getItem('notifications');
     if (savedNotifications) {
       setNotifications(JSON.parse(savedNotifications));
     }
   }, []);
 
-  // Generate notifications from tasks
   useEffect(() => {
     if (tasks.length > 0 && !isLoading) {
       const upcomingTasks = tasks.filter(task => {
@@ -130,7 +167,12 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
   }, [tasks, isLoading]);
 
   useEffect(() => {
-    // Save tasks to localStorage whenever they change
+    if (projects.length > 0 || !isLoading) {
+      localStorage.setItem('projects', JSON.stringify(projects));
+    }
+  }, [projects, isLoading]);
+
+  useEffect(() => {
     if (tasks.length > 0 || !isLoading) {
       localStorage.setItem('tasks', JSON.stringify(tasks));
     }
@@ -143,27 +185,100 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
     document.documentElement.classList.toggle('dark', newTheme === 'dark');
   };
 
-  const handleAddTask = (taskData) => {
-    const newTask = {
-      ...taskData,
+  const handleAddProject = (projectData) => {
+    const newProject = {
+      ...projectData,
       id: Date.now().toString(),
       createdAt: new Date().toISOString()
     };
+    setProjects([newProject, ...projects]);
+    setIsProjectModalOpen(false);
+    resetProjectForm();
+  };
+
+  const handleEditProject = (projectData) => {
+    if (editingProject) {
+      setProjects(projects.map(p => 
+        p.id === editingProject.id 
+          ? { ...projectData, id: p.id, createdAt: p.createdAt }
+          : p
+      ));
+      setEditingProject(null);
+      setIsProjectModalOpen(false);
+      resetProjectForm();
+    }
+  };
+
+  const handleDeleteProject = (id) => {
+    setTasks(tasks.filter(t => t.project_id !== id));
+    setProjects(projects.filter(p => p.id !== id));
+    if (selectedProject?.id === id) {
+      setSelectedProject(null);
+    }
+    setOpenProjectMenuId(null);
+  };
+
+  const openEditProjectModal = (project) => {
+    setEditingProject(project);
+    setProjectFormData({
+      title: project.title,
+      description: project.description,
+      is_private: project.is_private
+    });
+    setIsProjectModalOpen(true);
+    setOpenProjectMenuId(null);
+  };
+
+  const openAddProjectModal = () => {
+    setEditingProject(null);
+    resetProjectForm();
+    setIsProjectModalOpen(true);
+  };
+
+  const resetProjectForm = () => {
+    setProjectFormData({
+      title: '',
+      description: '',
+      is_private: true
+    });
+  };
+
+  const handleProjectSubmit = (e) => {
+    e.preventDefault();
+    if (editingProject) {
+      handleEditProject(projectFormData);
+    } else {
+      handleAddProject(projectFormData);
+    }
+  };
+
+  const handleAddTask = (taskData) => {
+    if (!selectedProject) {
+      alert('Please select a project first!');
+      return;
+    }
+    
+    const newTask = {
+      ...taskData,
+      id: Date.now().toString(),
+      project_id: selectedProject.id,
+      createdAt: new Date().toISOString()
+    };
     setTasks([newTask, ...tasks]);
-    setIsModalOpen(false);
-    resetForm();
+    setIsTaskModalOpen(false);
+    resetTaskForm();
   };
 
   const handleEditTask = (taskData) => {
     if (editingTask) {
       setTasks(tasks.map(t => 
         t.id === editingTask.id 
-          ? { ...taskData, id: t.id, createdAt: t.createdAt }
+          ? { ...taskData, id: t.id, project_id: t.project_id, createdAt: t.createdAt }
           : t
       ));
       setEditingTask(null);
-      setIsModalOpen(false);
-      resetForm();
+      setIsTaskModalOpen(false);
+      resetTaskForm();
     }
   };
 
@@ -179,8 +294,15 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
   };
 
   const handleShareTask = (taskId) => {
-    setSharingTaskId(taskId);
+    const task = tasks.find(t => t.id === taskId);
+    setShareModal({ isOpen: true, item: task, itemType: 'task' });
     setOpenMenuId(null);
+  };
+
+  const handleShareProject = (projectId) => {
+    const project = projects.find(p => p.id === projectId);
+    setShareModal({ isOpen: true, item: project, itemType: 'project' });
+    setOpenProjectMenuId(null);
   };
 
   const handleClearNotification = (id) => {
@@ -197,9 +319,9 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const openEditModal = (task) => {
+  const openEditTaskModal = (task) => {
     setEditingTask(task);
-    setFormData({
+    setTaskFormData({
       title: task.title,
       description: task.description,
       deadline: task.deadline.split('T')[0] + 'T' + task.deadline.split('T')[1].slice(0, 5),
@@ -207,18 +329,22 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
       priority: task.priority,
       completed: task.completed
     });
-    setIsModalOpen(true);
+    setIsTaskModalOpen(true);
     setOpenMenuId(null);
   };
 
-  const openAddModal = () => {
+  const openAddTaskModal = () => {
+    if (!selectedProject) {
+      alert('Please select a project first!');
+      return;
+    }
     setEditingTask(null);
-    resetForm();
-    setIsModalOpen(true);
+    resetTaskForm();
+    setIsTaskModalOpen(true);
   };
 
-  const resetForm = () => {
-    setFormData({
+  const resetTaskForm = () => {
+    setTaskFormData({
       title: '',
       description: '',
       deadline: '',
@@ -228,12 +354,12 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleTaskSubmit = (e) => {
     e.preventDefault();
     if (editingTask) {
-      handleEditTask(formData);
+      handleEditTask(taskFormData);
     } else {
-      handleAddTask(formData);
+      handleAddTask(taskFormData);
     }
   };
 
@@ -252,13 +378,15 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
     return 'Due soon';
   };
 
-  const filteredTasks = tasks.filter(task => {
-    // Search filter
+  const projectTasks = selectedProject 
+    ? tasks.filter(task => task.project_id === selectedProject.id)
+    : [];
+
+  const filteredTasks = projectTasks.filter(task => {
     if (searchQuery && !task.title.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
     
-    // Status filter
     switch (activeFilter) {
       case 'pending':
         return !task.completed;
@@ -278,30 +406,18 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
   });
 
   const stats = {
-    total: tasks.length,
-    pending: tasks.filter(t => !t.completed).length,
-    completed: tasks.filter(t => t.completed).length,
-    high: tasks.filter(t => t.priority === 'high' && !t.completed).length
+    total: projectTasks.length,
+    pending: projectTasks.filter(t => !t.completed).length,
+    completed: projectTasks.filter(t => t.completed).length,
+    high: projectTasks.filter(t => t.priority === 'high' && !t.completed).length
   };
 
-  // Show ShareTask page if requested
-  if (sharingTaskId) {
-    return (
-      <ShareTaskPage
-        taskId={sharingTaskId}
-        onBack={() => setSharingTaskId(null)}
-      />
-    );
-  }
-
-  // Show Profile page if requested
   if (showProfile) {
     return (
       <Profile
         currentUser={currentUser}
         onLogout={onLogout}
         onBack={() => {
-          // Refresh display name from localStorage when coming back from profile
           const updatedName = localStorage.getItem('userName') || (currentUser ? currentUser.split('@')[0] : 'User');
           setDisplayName(updatedName);
           setShowProfile(false);
@@ -327,7 +443,6 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
       <header className="border-b border-[#E8E8E8] dark:border-white/10 bg-white/80 dark:bg-black/30 backdrop-blur-sm sticky top-0 z-40 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            {/* Logo */}
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-[#4CAF50] rounded-lg flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-white" />
@@ -335,9 +450,7 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
               <span className="text-[#1A1A1A] dark:text-white hidden sm:block font-medium">Task Reminder System</span>
             </div>
 
-            {/* Right Section */}
             <div className="flex items-center gap-3">
-              {/* Theme Toggle */}
               <button
                 onClick={toggleTheme}
                 className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-white/10 rounded-lg transition-colors"
@@ -408,7 +521,6 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
       {/* Notification Panel */}
       {showNotification && (
         <div className="fixed top-20 right-4 z-50 w-96 bg-white dark:bg-[#2A2A2A] rounded-xl shadow-2xl border border-[#E8E8E8] dark:border-[#333] animate-slide-in max-h-[500px] flex flex-col">
-          {/* Header */}
           <div className="p-4 border-b border-[#E8E8E8] dark:border-[#333] flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bell className="w-5 h-5 text-[#4CAF50]" />
@@ -427,7 +539,6 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
             </button>
           </div>
 
-          {/* Notifications List */}
           <div className="flex-1 overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="p-8 text-center">
@@ -477,7 +588,6 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
             )}
           </div>
 
-          {/* Footer */}
           {notifications.length > 0 && (
             <div className="p-3 border-t border-[#E8E8E8] dark:border-[#333]">
               <button
@@ -493,197 +603,404 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white dark:bg-[#2A2A2A] rounded-xl p-4 border border-[#E8E8E8] dark:border-[#333] transition-colors">
-            <p className="text-[#1A1A1A]/60 dark:text-white/60 text-sm mb-1">Total Tasks</p>
-            <p className="text-[#1A1A1A] dark:text-white text-2xl font-semibold">{stats.total}</p>
-          </div>
-          <div className="bg-white dark:bg-[#2A2A2A] rounded-xl p-4 border border-[#E8E8E8] dark:border-[#333] transition-colors">
-            <p className="text-[#1A1A1A]/60 dark:text-white/60 text-sm mb-1">Pending</p>
-            <p className="text-[#1A1A1A] dark:text-white text-2xl font-semibold">{stats.pending}</p>
-          </div>
-          <div className="bg-white dark:bg-[#2A2A2A] rounded-xl p-4 border border-[#E8E8E8] dark:border-[#333] transition-colors">
-            <p className="text-[#1A1A1A]/60 dark:text-white/60 text-sm mb-1">Completed</p>
-            <p className="text-[#4CAF50] text-2xl font-semibold">{stats.completed}</p>
-          </div>
-          <div className="bg-white dark:bg-[#2A2A2A] rounded-xl p-4 border border-[#E8E8E8] dark:border-[#333] transition-colors">
-            <p className="text-[#1A1A1A]/60 dark:text-white/60 text-sm mb-1">High Priority</p>
-            <p className="text-red-500 text-2xl font-semibold">{stats.high}</p>
-          </div>
-        </div>
-
-        {/* Actions Bar */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          {/* Search */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#1A1A1A]/40 dark:text-white/40" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search tasks..."
-              className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#2A2A2A] border border-[#E8E8E8] dark:border-[#333] rounded-xl text-[#1A1A1A] dark:text-white placeholder:text-[#1A1A1A]/40 dark:placeholder:text-white/40 focus:outline-none focus:border-[#4CAF50] transition-all"
-            />
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-2">
-            <button
-              onClick={openAddModal}
-              className="px-6 py-3 bg-[#4CAF50] text-white rounded-xl hover:bg-[#45a049] transition-all flex items-center gap-2 shadow-lg shadow-[#4CAF50]/20"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Add Task</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Filter Tabs */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-          {[
-            { key: 'all', label: 'All Tasks', count: tasks.length },
-            { key: 'pending', label: 'Pending', count: stats.pending },
-            { key: 'completed', label: 'Completed', count: stats.completed },
-            { key: 'high', label: 'High Priority', count: stats.high },
-            { key: 'deadline', label: 'Deadline Soon', count: tasks.filter(t => {
-              const deadline = new Date(t.deadline);
-              const diff = deadline.getTime() - new Date().getTime();
-              const hours = diff / (1000 * 60 * 60);
-              return hours <= 24 && hours > 0;
-            }).length }
-          ].map((filter) => (
-            <button
-              key={filter.key}
-              onClick={() => setActiveFilter(filter.key)}
-              className={`px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-all ${
-                activeFilter === filter.key
-                  ? 'bg-[#4CAF50] text-white shadow-lg shadow-[#4CAF50]/20'
-                  : 'bg-white dark:bg-[#2A2A2A] text-[#1A1A1A] dark:text-white border border-[#E8E8E8] dark:border-[#333] hover:border-[#4CAF50]'
-              }`}
-            >
-              {filter.label}
-              <span className={`ml-2 ${activeFilter === filter.key ? 'text-white/80' : 'text-[#1A1A1A]/60 dark:text-white/60'}`}>
-                ({filter.count})
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* Task List */}
-        <div className="space-y-3">
-          {filteredTasks.length === 0 ? (
-            <div className="bg-white dark:bg-[#2A2A2A] rounded-xl p-12 text-center border border-[#E8E8E8] dark:border-[#333] transition-colors">
-              <div className="w-16 h-16 bg-[#F5F5F5] dark:bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-8 h-8 text-[#1A1A1A]/20 dark:text-white/20" />
-              </div>
-              <p className="text-[#1A1A1A] dark:text-white mb-2 font-medium">No tasks found</p>
-              <p className="text-[#1A1A1A]/60 dark:text-white/60 text-sm mb-6">
-                {searchQuery ? 'Try adjusting your search' : 'Create your first task to get started'}
-              </p>
-              {!searchQuery && (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Projects Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="bg-white dark:bg-[#2A2A2A] rounded-xl border border-[#E8E8E8] dark:border-[#333] p-4 transition-colors sticky top-24">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-[#1A1A1A] dark:text-white font-semibold flex items-center gap-2">
+                  <Folder className="w-5 h-5" />
+                  Projects
+                </h2>
                 <button
-                  onClick={openAddModal}
+                  onClick={openAddProjectModal}
+                  className="p-2 bg-[#4CAF50] text-white rounded-lg hover:bg-[#45a049] transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {projects.length === 0 ? (
+                  <p className="text-[#1A1A1A]/60 dark:text-white/60 text-sm text-center py-8">
+                    No projects yet. Create one!
+                  </p>
+                ) : (
+                  projects.map((project) => (
+                    <div
+                      key={project.id}
+                      className={`p-3 rounded-lg border transition-all cursor-pointer ${
+                        selectedProject?.id === project.id
+                          ? 'bg-[#4CAF50]/10 border-[#4CAF50]'
+                          : 'border-[#E8E8E8] dark:border-[#333] hover:border-[#4CAF50]/50'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <button
+                          onClick={() => setSelectedProject(project)}
+                          className="flex-1 text-left"
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            {project.is_private ? (
+                              <Lock className="w-4 h-4 text-[#1A1A1A]/60 dark:text-white/60" />
+                            ) : (
+                              <Globe className="w-4 h-4 text-[#4CAF50]" />
+                            )}
+                            <h3 className="text-[#1A1A1A] dark:text-white font-medium text-sm truncate">
+                              {project.title}
+                            </h3>
+                          </div>
+                          <p className="text-[#1A1A1A]/60 dark:text-white/60 text-xs truncate">
+                            {tasks.filter(t => t.project_id === project.id).length} tasks
+                          </p>
+                        </button>
+                        <div className="relative">
+                          <button
+                            onClick={() => setOpenProjectMenuId(openProjectMenuId === project.id ? null : project.id)}
+                            className="p-1 hover:bg-[#F5F5F5] dark:hover:bg-white/10 rounded transition-colors"
+                          >
+                            <MoreVertical className="w-4 h-4 text-[#1A1A1A] dark:text-white" />
+                          </button>
+
+                          {openProjectMenuId === project.id && (
+                            <div className="absolute right-0 mt-2 w-32 bg-white dark:bg-[#2A2A2A] rounded-xl shadow-lg border border-[#E8E8E8] dark:border-[#333] py-2 z-10">
+                              <button
+                                onClick={() => openEditProjectModal(project)}
+                                className="w-full px-4 py-2 text-left text-[#1A1A1A] dark:text-white hover:bg-[#F5F5F5] dark:hover:bg-white/10 flex items-center gap-2 text-sm"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleShareProject(project.id)}
+                                className="w-full px-4 py-2 text-left text-[#1A1A1A] dark:text-white hover:bg-[#F5F5F5] dark:hover:bg-white/10 flex items-center gap-2 text-sm"
+                              >
+                                <Share2 className="w-4 h-4" />
+                                Share
+                              </button>
+                              <button
+                                onClick={() => handleDeleteProject(project.id)}
+                                className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-600/10 flex items-center gap-2 text-sm"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Tasks Area */}
+          <div className="lg:col-span-3">
+            {!selectedProject ? (
+              <div className="bg-white dark:bg-[#2A2A2A] rounded-xl p-12 text-center border border-[#E8E8E8] dark:border-[#333] transition-colors">
+                <div className="w-16 h-16 bg-[#F5F5F5] dark:bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FolderOpen className="w-8 h-8 text-[#1A1A1A]/20 dark:text-white/20" />
+                </div>
+                <p className="text-[#1A1A1A] dark:text-white mb-2 font-medium">No project selected</p>
+                <p className="text-[#1A1A1A]/60 dark:text-white/60 text-sm mb-6">
+                  Select a project from the sidebar or create a new one
+                </p>
+                <button
+                  onClick={openAddProjectModal}
                   className="px-6 py-2 bg-[#4CAF50] text-white rounded-lg hover:bg-[#45a049] transition-all"
                 >
-                  Add Task
+                  Create Project
                 </button>
-              )}
-            </div>
-          ) : (
-            filteredTasks.map((task) => (
-              <div
-                key={task.id}
-                className="bg-white dark:bg-[#2A2A2A] rounded-xl p-4 border border-[#E8E8E8] dark:border-[#333] hover:border-[#4CAF50]/50 hover:shadow-md transition-all"
-              >
-                <div className="flex items-start gap-4">
-                  {/* Checkbox */}
-                  <button
-                    onClick={() => handleToggleComplete(task.id)}
-                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all ${
-                      task.completed
-                        ? 'bg-[#4CAF50] border-[#4CAF50]'
-                        : 'border-[#E8E8E8] dark:border-[#333] hover:border-[#4CAF50]'
-                    }`}
-                  >
-                    {task.completed && <CheckCircle className="w-4 h-4 text-white" />}
-                  </button>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className={`text-[#1A1A1A] dark:text-white mb-1 font-medium ${task.completed ? 'line-through opacity-50' : ''}`}>
-                      {task.title}
-                    </h3>
-                    <p className={`text-[#1A1A1A]/60 dark:text-white/60 text-sm mb-3 ${task.completed ? 'line-through opacity-50' : ''}`}>
-                      {task.description}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex items-center gap-1 text-[#1A1A1A]/60 dark:text-white/60 text-sm">
-                        <Clock className="w-4 h-4" />
-                        <span>{getTimeRemaining(task.deadline)}</span>
-                      </div>
-                      <span className={`px-2 py-1 rounded-md text-xs ${
-                        task.priority === 'high' ? 'bg-red-100 text-red-600 dark:bg-red-600/20 dark:text-red-400' :
-                        task.priority === 'medium' ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-600/20 dark:text-yellow-300' :
-                        'bg-blue-100 text-blue-600 dark:bg-blue-600/20 dark:text-blue-300'
-                      }`}>
-                        {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                      </span>
-                      <span className="text-[#1A1A1A]/40 dark:text-white/40 text-xs">
-                        {new Date(task.deadline).toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </span>
-                    </div>
+              </div>
+            ) : (
+              <>
+                {/* Stats */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  <div className="bg-white dark:bg-[#2A2A2A] rounded-xl p-4 border border-[#E8E8E8] dark:border-[#333] transition-colors">
+                    <p className="text-[#1A1A1A]/60 dark:text-white/60 text-sm mb-1">Total Tasks</p>
+                    <p className="text-[#1A1A1A] dark:text-white text-2xl font-semibold">{stats.total}</p>
                   </div>
-
-                  {/* Menu */}
-                  <div className="relative">
-                    <button
-                      onClick={() => setOpenMenuId(openMenuId === task.id ? null : task.id)}
-                      className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-white/10 rounded-lg transition-colors"
-                    >
-                      <MoreVertical className="w-5 h-5 text-[#1A1A1A] dark:text-white" />
-                    </button>
-
-                    {openMenuId === task.id && (
-                      <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-[#2A2A2A] rounded-xl shadow-lg border border-[#E8E8E8] dark:border-[#333] py-2 z-10">
-                        <button
-                          onClick={() => openEditModal(task)}
-                          className="w-full px-4 py-2 text-left text-[#1A1A1A] dark:text-white hover:bg-[#F5F5F5] dark:hover:bg-white/10 flex items-center gap-2 text-sm"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleShareTask(task.id)}
-                          className="w-full px-4 py-2 text-left text-[#1A1A1A] dark:text-white hover:bg-[#F5F5F5] dark:hover:bg-white/10 flex items-center gap-2 text-sm"
-                        >
-                          <Share2 className="w-4 h-4" />
-                          Share
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTask(task.id)}
-                          className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-600/10 flex items-center gap-2 text-sm"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Delete
-                        </button>
-                      </div>
-                    )}
+                  <div className="bg-white dark:bg-[#2A2A2A] rounded-xl p-4 border border-[#E8E8E8] dark:border-[#333] transition-colors">
+                    <p className="text-[#1A1A1A]/60 dark:text-white/60 text-sm mb-1">Pending</p>
+                    <p className="text-[#1A1A1A] dark:text-white text-2xl font-semibold">{stats.pending}</p>
+                  </div>
+                  <div className="bg-white dark:bg-[#2A2A2A] rounded-xl p-4 border border-[#E8E8E8] dark:border-[#333] transition-colors">
+                    <p className="text-[#1A1A1A]/60 dark:text-white/60 text-sm mb-1">Completed</p>
+                    <p className="text-[#4CAF50] text-2xl font-semibold">{stats.completed}</p>
+                  </div>
+                  <div className="bg-white dark:bg-[#2A2A2A] rounded-xl p-4 border border-[#E8E8E8] dark:border-[#333] transition-colors">
+                    <p className="text-[#1A1A1A]/60 dark:text-white/60 text-sm mb-1">High Priority</p>
+                    <p className="text-red-500 text-2xl font-semibold">{stats.high}</p>
                   </div>
                 </div>
-              </div>
-            ))
-          )}
+
+                {/* Actions Bar */}
+                <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#1A1A1A]/40 dark:text-white/40" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search tasks..."
+                      className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#2A2A2A] border border-[#E8E8E8] dark:border-[#333] rounded-xl text-[#1A1A1A] dark:text-white placeholder:text-[#1A1A1A]/40 dark:placeholder:text-white/40 focus:outline-none focus:border-[#4CAF50] transition-all"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={openAddTaskModal}
+                      className="px-6 py-3 bg-[#4CAF50] text-white rounded-xl hover:bg-[#45a049] transition-all flex items-center gap-2 shadow-lg shadow-[#4CAF50]/20"
+                    >
+                      <Plus className="w-5 h-5" />
+                      <span>Add Task</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filter Tabs */}
+                <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+                  {[
+                    { key: 'all', label: 'All Tasks', count: projectTasks.length },
+                    { key: 'pending', label: 'Pending', count: stats.pending },
+                    { key: 'completed', label: 'Completed', count: stats.completed },
+                    { key: 'high', label: 'High Priority', count: stats.high },
+                  ].map((filter) => (
+                    <button
+                      key={filter.key}
+                      onClick={() => setActiveFilter(filter.key)}
+                      className={`px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-all ${
+                        activeFilter === filter.key
+                          ? 'bg-[#4CAF50] text-white shadow-lg shadow-[#4CAF50]/20'
+                          : 'bg-white dark:bg-[#2A2A2A] text-[#1A1A1A] dark:text-white border border-[#E8E8E8] dark:border-[#333] hover:border-[#4CAF50]'
+                      }`}
+                    >
+                      {filter.label}
+                      <span className={`ml-2 ${activeFilter === filter.key ? 'text-white/80' : 'text-[#1A1A1A]/60 dark:text-white/60'}`}>
+                        ({filter.count})
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Task List */}
+                <div className="space-y-3">
+                  {filteredTasks.length === 0 ? (
+                    <div className="bg-white dark:bg-[#2A2A2A] rounded-xl p-12 text-center border border-[#E8E8E8] dark:border-[#333] transition-colors">
+                      <div className="w-16 h-16 bg-[#F5F5F5] dark:bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckCircle className="w-8 h-8 text-[#1A1A1A]/20 dark:text-white/20" />
+                      </div>
+                      <p className="text-[#1A1A1A] dark:text-white mb-2 font-medium">No tasks found</p>
+                      <p className="text-[#1A1A1A]/60 dark:text-white/60 text-sm mb-6">
+                        {searchQuery ? 'Try adjusting your search' : 'Create your first task to get started'}
+                      </p>
+                      {!searchQuery && (
+                        <button
+                          onClick={openAddTaskModal}
+                          className="px-6 py-2 bg-[#4CAF50] text-white rounded-lg hover:bg-[#45a049] transition-all"
+                        >
+                          Add Task
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    filteredTasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className="bg-white dark:bg-[#2A2A2A] rounded-xl p-4 border border-[#E8E8E8] dark:border-[#333] hover:border-[#4CAF50]/50 hover:shadow-md transition-all"
+                      >
+                        <div className="flex items-start gap-4">
+                          <button
+                            onClick={() => handleToggleComplete(task.id)}
+                            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all ${
+                              task.completed
+                                ? 'bg-[#4CAF50] border-[#4CAF50]'
+                                : 'border-[#E8E8E8] dark:border-[#333] hover:border-[#4CAF50]'
+                            }`}
+                          >
+                            {task.completed && <CheckCircle className="w-4 h-4 text-white" />}
+                          </button>
+
+                          <div className="flex-1 min-w-0">
+                            <h3 className={`text-[#1A1A1A] dark:text-white mb-1 font-medium ${task.completed ? 'line-through opacity-50' : ''}`}>
+                              {task.title}
+                            </h3>
+                            <p className={`text-[#1A1A1A]/60 dark:text-white/60 text-sm mb-3 ${task.completed ? 'line-through opacity-50' : ''}`}>
+                              {task.description}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="flex items-center gap-1 text-[#1A1A1A]/60 dark:text-white/60 text-sm">
+                                <Clock className="w-4 h-4" />
+                                <span>{getTimeRemaining(task.deadline)}</span>
+                              </div>
+                              <span className={`px-2 py-1 rounded-md text-xs ${
+                                task.priority === 'high' ? 'bg-red-100 text-red-600 dark:bg-red-600/20 dark:text-red-400' :
+                                task.priority === 'medium' ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-600/20 dark:text-yellow-300' :
+                                'bg-blue-100 text-blue-600 dark:bg-blue-600/20 dark:text-blue-300'
+                              }`}>
+                                {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="relative">
+                            <button
+                              onClick={() => setOpenMenuId(openMenuId === task.id ? null : task.id)}
+                              className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-white/10 rounded-lg transition-colors"
+                            >
+                              <MoreVertical className="w-5 h-5 text-[#1A1A1A] dark:text-white" />
+                            </button>
+
+                            {openMenuId === task.id && (
+                              <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-[#2A2A2A] rounded-xl shadow-lg border border-[#E8E8E8] dark:border-[#333] py-2 z-10">
+                                <button
+                                  onClick={() => openEditTaskModal(task)}
+                                  className="w-full px-4 py-2 text-left text-[#1A1A1A] dark:text-white hover:bg-[#F5F5F5] dark:hover:bg-white/10 flex items-center gap-2 text-sm"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleShareTask(task.id)}
+                                  className="w-full px-4 py-2 text-left text-[#1A1A1A] dark:text-white hover:bg-[#F5F5F5] dark:hover:bg-white/10 flex items-center gap-2 text-sm"
+                                >
+                                  <Share2 className="w-4 h-4" />
+                                  Share
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteTask(task.id)}
+                                  className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-600/10 flex items-center gap-2 text-sm"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  Delete
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </main>
 
+      {/* Add/Edit Project Modal */}
+      {isProjectModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#2A2A2A] rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-[#1A1A1A] dark:text-white text-xl font-semibold">
+                {editingProject ? 'Edit Project' : 'Create New Project'}
+              </h2>
+              <button
+                onClick={() => {
+                  setIsProjectModalOpen(false);
+                  setEditingProject(null);
+                  resetProjectForm();
+                }}
+                className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-[#1A1A1A] dark:text-white" />
+              </button>
+            </div>
+
+            <form onSubmit={handleProjectSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[#1A1A1A] dark:text-white text-sm font-medium mb-2">
+                  Project Title *
+                </label>
+                <input
+                  type="text"
+                  value={projectFormData.title}
+                  onChange={(e) => setProjectFormData({ ...projectFormData, title: e.target.value })}
+                  placeholder="Enter project title"
+                  required
+                  className="w-full px-4 py-3 bg-[#F5F5F5] dark:bg-white/5 border border-[#E8E8E8] dark:border-[#333] rounded-xl text-[#1A1A1A] dark:text-white placeholder:text-[#1A1A1A]/40 dark:placeholder:text-white/40 focus:outline-none focus:border-[#4CAF50] transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#1A1A1A] dark:text-white text-sm font-medium mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={projectFormData.description}
+                  onChange={(e) => setProjectFormData({ ...projectFormData, description: e.target.value })}
+                  placeholder="Add project description"
+                  rows="3"
+                  className="w-full px-4 py-3 bg-[#F5F5F5] dark:bg-white/5 border border-[#E8E8E8] dark:border-[#333] rounded-xl text-[#1A1A1A] dark:text-white placeholder:text-[#1A1A1A]/40 dark:placeholder:text-white/40 focus:outline-none focus:border-[#4CAF50] transition-all resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#1A1A1A] dark:text-white text-sm font-medium mb-2">
+                  Visibility
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setProjectFormData({ ...projectFormData, is_private: true })}
+                    className={`px-4 py-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                      projectFormData.is_private
+                        ? 'bg-[#4CAF50] text-white'
+                        : 'bg-[#F5F5F5] dark:bg-white/5 text-[#1A1A1A] dark:text-white border border-[#E8E8E8] dark:border-[#333]'
+                    }`}
+                  >
+                    <Lock className="w-4 h-4" />
+                    Private
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProjectFormData({ ...projectFormData, is_private: false })}
+                    className={`px-4 py-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                      !projectFormData.is_private
+                        ? 'bg-[#4CAF50] text-white'
+                        : 'bg-[#F5F5F5] dark:bg-white/5 text-[#1A1A1A] dark:text-white border border-[#E8E8E8] dark:border-[#333]'
+                    }`}
+                  >
+                    <Globe className="w-4 h-4" />
+                    Public
+                  </button>
+                </div>
+                <p className="text-xs text-[#1A1A1A]/60 dark:text-white/60 mt-2">
+                  {projectFormData.is_private 
+                    ? 'Only you can see this project. Tasks cannot be shared.' 
+                    : 'Anyone can view this project. Tasks can be shared.'}
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProjectModalOpen(false);
+                    setEditingProject(null);
+                    resetProjectForm();
+                  }}
+                  className="flex-1 px-6 py-3 bg-[#F5F5F5] dark:bg-white/5 text-[#1A1A1A] dark:text-white border border-[#E8E8E8] dark:border-[#333] rounded-xl hover:bg-[#E8E8E8] dark:hover:bg-white/10 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-6 py-3 bg-[#4CAF50] text-white rounded-xl hover:bg-[#45a049] transition-all shadow-lg shadow-[#4CAF50]/20"
+                >
+                  {editingProject ? 'Update' : 'Create'} Project
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Add/Edit Task Modal */}
-      {isModalOpen && (
+      {isTaskModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-[#2A2A2A] rounded-2xl w-full max-w-md p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
@@ -692,9 +1009,9 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
               </h2>
               <button
                 onClick={() => {
-                  setIsModalOpen(false);
+                  setIsTaskModalOpen(false);
                   setEditingTask(null);
-                  resetForm();
+                  resetTaskForm();
                 }}
                 className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-white/10 rounded-lg transition-colors"
               >
@@ -702,15 +1019,15 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleTaskSubmit} className="space-y-4">
               <div>
                 <label className="block text-[#1A1A1A] dark:text-white text-sm font-medium mb-2">
                   Task Title *
                 </label>
                 <input
                   type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  value={taskFormData.title}
+                  onChange={(e) => setTaskFormData({ ...taskFormData, title: e.target.value })}
                   placeholder="Enter task title"
                   required
                   className="w-full px-4 py-3 bg-[#F5F5F5] dark:bg-white/5 border border-[#E8E8E8] dark:border-[#333] rounded-xl text-[#1A1A1A] dark:text-white placeholder:text-[#1A1A1A]/40 dark:placeholder:text-white/40 focus:outline-none focus:border-[#4CAF50] transition-all"
@@ -722,8 +1039,8 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
                   Description
                 </label>
                 <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  value={taskFormData.description}
+                  onChange={(e) => setTaskFormData({ ...taskFormData, description: e.target.value })}
                   placeholder="Add task description"
                   rows="3"
                   className="w-full px-4 py-3 bg-[#F5F5F5] dark:bg-white/5 border border-[#E8E8E8] dark:border-[#333] rounded-xl text-[#1A1A1A] dark:text-white placeholder:text-[#1A1A1A]/40 dark:placeholder:text-white/40 focus:outline-none focus:border-[#4CAF50] transition-all resize-none"
@@ -736,8 +1053,8 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
                 </label>
                 <input
                   type="datetime-local"
-                  value={formData.deadline}
-                  onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+                  value={taskFormData.deadline}
+                  onChange={(e) => setTaskFormData({ ...taskFormData, deadline: e.target.value })}
                   required
                   className="w-full px-4 py-3 bg-[#F5F5F5] dark:bg-white/5 border border-[#E8E8E8] dark:border-[#333] rounded-xl text-[#1A1A1A] dark:text-white focus:outline-none focus:border-[#4CAF50] transition-all"
                 />
@@ -749,8 +1066,8 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
                 </label>
                 <input
                   type="time"
-                  value={formData.reminderTime}
-                  onChange={(e) => setFormData({ ...formData, reminderTime: e.target.value })}
+                  value={taskFormData.reminderTime}
+                  onChange={(e) => setTaskFormData({ ...taskFormData, reminderTime: e.target.value })}
                   className="w-full px-4 py-3 bg-[#F5F5F5] dark:bg-white/5 border border-[#E8E8E8] dark:border-[#333] rounded-xl text-[#1A1A1A] dark:text-white focus:outline-none focus:border-[#4CAF50] transition-all"
                 />
               </div>
@@ -764,9 +1081,9 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
                     <button
                       key={priority}
                       type="button"
-                      onClick={() => setFormData({ ...formData, priority })}
+                      onClick={() => setTaskFormData({ ...taskFormData, priority })}
                       className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                        formData.priority === priority
+                        taskFormData.priority === priority
                           ? priority === 'high' 
                             ? 'bg-red-500 text-white' 
                             : priority === 'medium' 
@@ -785,9 +1102,9 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
                 <button
                   type="button"
                   onClick={() => {
-                    setIsModalOpen(false);
+                    setIsTaskModalOpen(false);
                     setEditingTask(null);
-                    resetForm();
+                    resetTaskForm();
                   }}
                   className="flex-1 px-6 py-3 bg-[#F5F5F5] dark:bg-white/5 text-[#1A1A1A] dark:text-white border border-[#E8E8E8] dark:border-[#333] rounded-xl hover:bg-[#E8E8E8] dark:hover:bg-white/10 transition-all"
                 >
@@ -804,6 +1121,15 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
           </div>
         </div>
       )}
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={shareModal.isOpen}
+        onClose={() => setShareModal({ isOpen: false, item: null, itemType: null })}
+        item={shareModal.item}
+        itemType={shareModal.itemType}
+        theme={theme}
+      />
     </div>
   );
 }

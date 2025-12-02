@@ -12,7 +12,17 @@ class User extends Authenticatable
 
     protected $fillable = ['name', 'phone_number', 'password_hash'];
 
-    protected $hidden = ['password_hash'];
+    protected $hidden = ['password_hash', 'remember_token'];
+
+    public function getAuthPassword()
+    {
+        return $this->password_hash;
+    }
+
+    public function username()
+    {
+        return 'phone_number';
+    }
 
     public function projects() {
         return $this->hasMany(Project::class);

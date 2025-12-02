@@ -4,7 +4,6 @@ export default function useTheme() {
   const [theme, setTheme] = useState("light");
   const [mounted, setMounted] = useState(false);
 
-  // Saat pertama kali load
   useEffect(() => {
     const saved = localStorage.getItem("theme");
 

@@ -77,6 +77,7 @@ export const api = {
     create: (payload) => request("/projects", { method: "POST", body: payload }),
     copy: (projectId) => request(`/projects/${projectId}/copy`, { method: "POST" }),
     share: (projectId) => request(`/projects/${projectId}/share`, { method: "POST" }),
+    delete: (projectId) => request(`/projects/${projectId}`, { method: "DELETE" }),
   },
   tasks: {
     list: (params = {}) => {

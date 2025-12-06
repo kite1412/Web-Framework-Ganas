@@ -82,6 +82,8 @@ export default function Dashboard() {
   });
   const [notifications, setNotifications] = useState([]);
   const [shareModal, setShareModal] = useState({ isOpen: false, item: null, itemType: null });
+  // Holds per-project total task counts so badges show real numbers immediately
+  const [taskCounts, setTaskCounts] = useState({});
 
   const [projectFormData, setProjectFormData] = useState({
     title: '',
@@ -179,6 +181,29 @@ export default function Dashboard() {
     })();
   }, [selectedProject?.id]);
 
+  // Fetch per-project task counts so sidebar shows accurate totals on first load
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!projects || projects.length === 0) return;
+        // Fetch counts in parallel per project; fall back to 0 on failure
+        const results = await Promise.all(
+          projects.map(async (p) => {
+            try {
+              const list = await api.tasks.list({ project_id: p.id });
+              return { id: p.id, count: Array.isArray(list) ? list.length : 0 };
+            } catch {
+              return { id: p.id, count: 0 };
+            }
+          })
+        );
+        const next = {};
+        results.forEach(({ id, count }) => { next[id] = count; });
+        setTaskCounts(next);
+      } catch {}
+    })();
+  }, [projects]);
+
   useEffect(() => {
     if (projects.length > 0 || !isLoading) {
       localStorage.setItem('projects', JSON.stringify(projects));
@@ -230,12 +255,40 @@ export default function Dashboard() {
   };
 
   const handleDeleteProject = (id) => {
-    setTasks(tasks.filter(t => t.project_id !== id));
+    // Verify delete action
+    const confirmed = typeof window !== 'undefined'
+      ? window.confirm('Delete this project? All its tasks will be removed. This action cannot be undone.')
+      : true;
+    if (!confirmed) {
+      setOpenProjectMenuId(null);
+      return;
+    }
+    const prevProjects = projects;
+    const prevTasks = tasks;
+    // Optimistic remove project and its tasks from UI
     setProjects(projects.filter(p => p.id !== id));
+    setTasks(tasks.filter(t => t.project_id !== id));
+    // Drop associated count badge
+    setTaskCounts(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     if (selectedProject?.id === id) {
       setSelectedProject(null);
     }
     setOpenProjectMenuId(null);
+    (async () => {
+      try {
+        await api.projects.delete(id);
+      } catch (err) {
+        // Revert on failure
+        setProjects(prevProjects);
+        setTasks(prevTasks);
+        setTaskCounts(prev => ({ ...prev, [id]: prev[id] ?? prevTasks.filter(t => t.project_id === id).length }));
+        alert(err?.data?.message || err.message || 'Failed to delete project');
+      }
+    })();
   };
 
   const openEditProjectModal = (project) => {
@@ -292,6 +345,11 @@ export default function Dashboard() {
       };
       const created = await api.tasks.create(payload);
       setTasks([created, ...tasks]);
+      // Update per-project count badge
+      setTaskCounts(prev => ({
+        ...prev,
+        [selectedProject.id]: (prev[selectedProject.id] ?? 0) + 1
+      }));
       setIsTaskModalOpen(false);
       resetTaskForm();
     } catch (err) {
@@ -328,14 +386,57 @@ export default function Dashboard() {
   };
 
   const handleDeleteTask = (id) => {
+    // Verify delete action
+    const confirmed = typeof window !== 'undefined' ? window.confirm('Delete this task? This action cannot be undone.') : true;
+    if (!confirmed) return;
+    const target = tasks.find(t => t.id === id);
+    const prevTasks = tasks;
+    // Optimistic removal
     setTasks(tasks.filter(t => t.id !== id));
+    // Adjust per-project count badge
+    if (target?.project_id) {
+      setTaskCounts(prev => ({
+        ...prev,
+        [target.project_id]: Math.max(0, (prev[target.project_id] ?? 0) - 1)
+      }));
+    }
     setOpenMenuId(null);
+    (async () => {
+      try {
+        await api.tasks.delete(id);
+      } catch (err) {
+        // Revert on failure
+        setTasks(prevTasks);
+        if (target?.project_id) {
+          setTaskCounts(prev => ({
+            ...prev,
+            [target.project_id]: (prev[target.project_id] ?? 0) + 1
+          }));
+        }
+        alert(err?.data?.message || err.message || 'Failed to delete task');
+      }
+    })();
   };
 
   const handleToggleComplete = (id) => {
-    setTasks(tasks.map(t => 
-      t.id === id ? { ...t, completed: !t.completed } : t
-    ));
+    const target = tasks.find(t => t.id === id);
+    if (!target) return;
+    const toggledCompleted = !target.completed;
+    // Optimistic UI update
+    setTasks(tasks.map(t => (t.id === id ? { ...t, completed: toggledCompleted } : t)));
+    // Persist status when marking as completed
+    if (toggledCompleted) {
+      (async () => {
+        try {
+          const updated = await api.tasks.update(id, { status: 'completed' });
+          setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...updated } : t)));
+        } catch (err) {
+          // Revert on failure
+          setTasks(prev => prev.map(t => (t.id === id ? { ...t, completed: !toggledCompleted } : t)));
+          alert(err?.data?.message || err.message || 'Failed to update task status');
+        }
+      })();
+    }
   };
 
   const handleShareTask = (taskId) => {
@@ -736,12 +837,16 @@ export default function Dashboard() {
                             ) : (
                               <Globe className="w-4 h-4 text-[#4CAF50]" />
                             )}
-                            <h3 className="text-[#1A1A1A] dark:text-white font-medium text-sm truncate">
+                            <h3 className="text-[#1A1A1A] dark:text-white font-medium text-sm truncate flex items-center gap-2">
                               {project.title}
+                              {/* Actual total tasks badge */}
+                              <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-[#F5F5F5] dark:bg-white/5 text-[#1A1A1A]/70 dark:text-white/70 border border-[#E8E8E8] dark:border-[#333]">
+                                {taskCounts[project.id] ?? tasks.filter(t => t.project_id === project.id).length}
+                              </span>
                             </h3>
                           </div>
                           <p className="text-[#1A1A1A]/60 dark:text-white/60 text-xs truncate">
-                            {tasks.filter(t => t.project_id === project.id).length} tasks
+                            {(taskCounts[project.id] ?? tasks.filter(t => t.project_id === project.id).length)} tasks
                           </p>
                         </button>
                         <div className="relative">

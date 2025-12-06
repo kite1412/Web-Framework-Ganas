@@ -14,6 +14,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', [ProjectController::class, 'store']);  
         Route::post('/copy', [ProjectController::class, 'copy']);
         Route::post('/{project}/share', [ProjectController::class, 'share']);
+        Route::delete('/{project}', [ProjectController::class, 'destroy']);
     });
     Route::prefix('tasks')->group(function () {
         Route::post('/', [TaskController::class, 'store']);

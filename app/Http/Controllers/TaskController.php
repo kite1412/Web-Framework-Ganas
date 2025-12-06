@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Models\Task;
+use App\Models\TaskReminder;
 use App\Services\TaskService;
 
 class TaskController extends Controller
@@ -74,6 +75,13 @@ class TaskController extends Controller
 
     public function destroy(Task $task)
     {
+        // Soft-delete related reminders by setting deleted_at
+        try {
+            TaskReminder::where('task_id', $task->id)->update(['deleted_at' => now()]);
+        } catch (\Throwable $e) {
+            // continue with task delete even if reminder update fails
+        }
+
         $task->delete();
         return response()->json(['message' => 'Task deleted successfully']);
     }

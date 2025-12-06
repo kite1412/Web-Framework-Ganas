@@ -65,4 +65,10 @@ class ProjectController extends Controller
             'share_link' => url('/shared/project/' . $project->id)
         ]);
     }
+
+    public function destroy(Request $request, Project $project)
+    {
+        $project->delete();
+        return response()->json(['message' => 'Project deleted successfully']);
+    }
 }

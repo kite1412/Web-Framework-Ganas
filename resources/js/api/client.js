@@ -78,6 +78,16 @@ export const api = {
     copy: (projectId) => request(`/projects/${projectId}/copy`, { method: "POST" }),
     share: (projectId) => request(`/projects/${projectId}/share`, { method: "POST" }),
   },
+  tasks: {
+    list: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return request(`/tasks${qs ? `?${qs}` : ``}`);
+    },
+    create: (payload) => request(`/tasks`, { method: "POST", body: payload }),
+    update: (taskId, payload) => request(`/tasks/${taskId}`, { method: "PUT", body: payload }),
+    delete: (taskId) => request(`/tasks/${taskId}`, { method: "DELETE" }),
+    share: (taskId) => request(`/tasks/${taskId}/share`, { method: "POST" }),
+  },
 };
 
 export default api;

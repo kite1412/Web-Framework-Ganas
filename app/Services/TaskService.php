@@ -39,10 +39,28 @@ class TaskService
     {
         $task->update($data);
 
-        if(isset($data['reminders'])) {
+        if (isset($data['reminders'])) {
+            // Reset existing reminders
             $task->reminders()->delete();
-            foreach($data['reminders'] as $reminderData) {
-                $task->reminders()->create($reminderData);
+
+            // Accept both array of timestamps (strings) and array of objects
+            foreach ($data['reminders'] as $reminder) {
+                if (is_array($reminder)) {
+                    // If object-like input is provided, normalize keys
+                    $remindAt = $reminder['remind_at'] ?? ($reminder['time'] ?? null);
+                    if ($remindAt) {
+                        $task->reminders()->create([
+                            'remind_at' => Carbon::parse($remindAt),
+                            'is_sent' => (bool)($reminder['is_sent'] ?? false),
+                        ]);
+                    }
+                } else {
+                    // If plain timestamp string provided
+                    $task->reminders()->create([
+                        'remind_at' => Carbon::parse($reminder),
+                        'is_sent' => false,
+                    ]);
+                }
             }
         }
 

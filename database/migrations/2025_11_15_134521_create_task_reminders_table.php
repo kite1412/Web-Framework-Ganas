@@ -13,6 +13,7 @@ return new class extends Migration {
             $table->timestampTz('remind_at');
             $table->boolean('is_sent');
             $table->timestampTz('sent_at')->nullable();
+            $table->timestampsTz();
             $table->softDeletesTz();
         });
     }

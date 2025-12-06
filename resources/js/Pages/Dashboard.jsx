@@ -23,7 +23,37 @@ import Profile from '../Components/Profile';
 import ShareModal from '../Components/ShareModal';
 import api from '../api/client';
 
-export default function Dashboard({ onNavigate, onLogout, currentUser }) {
+export default function Dashboard() {
+  // Normalize incoming props into internal handlers and values
+  const navigate = (path) => {
+    if (typeof window !== 'undefined') {
+      // Fallback to hard navigation for SPA routes
+      window.location.href = path === 'home' ? '/' : `/${path}`;
+    }
+  };
+
+  const logout = async () => {
+    try { await api.logout(); } catch {}
+    try {
+      localStorage.removeItem('auth_user');
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('projects');
+      localStorage.removeItem('tasks');
+      localStorage.removeItem('notifications');
+    } catch {}
+    navigate('home');
+  };
+
+  const resolvedUser = (() => {
+    try {
+      const authUserStr = localStorage.getItem('auth_user');
+      if (authUserStr) {
+        const authUser = JSON.parse(authUserStr);
+        return authUser?.email || authUser?.phone_number || authUser?.name || '';
+      }
+    } catch {}
+    return '';
+  })();
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
@@ -48,7 +78,7 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
         return authUser?.name || authUser?.phone_number || 'User';
       }
     } catch {}
-    return localStorage.getItem('userName') || (currentUser ? currentUser.split('@')[0] : 'User');
+    return localStorage.getItem('userName') || (resolvedUser ? (resolvedUser.split('@')[0] || resolvedUser) : 'User');
   });
   const [notifications, setNotifications] = useState([]);
   const [shareModal, setShareModal] = useState({ isOpen: false, item: null, itemType: null });
@@ -72,8 +102,11 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
     // Redirect to login if not authenticated
     try {
       const token = localStorage.getItem('auth_token');
-      if (!token) {
-        onNavigate && onNavigate('login');
+      const authUserStr = localStorage.getItem('auth_user');
+      const hasUserInfo = !!authUserStr && authUserStr !== 'null' && authUserStr !== 'undefined';
+      if (!token || !hasUserInfo) {
+        // Navigate to Home when not logged in
+        navigate('home');
         return;
       }
     } catch {}
@@ -96,48 +129,7 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
       }
     })();
 
-    const savedTasks = localStorage.getItem('tasks');
-    if (savedTasks) {
-      setTasks(JSON.parse(savedTasks));
-    } else {
-      const mockTasks = [
-        {
-          id: '1',
-          project_id: '1',
-          title: 'Submit assignment',
-          description: 'Complete and submit the final project assignment',
-          deadline: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-          reminderTime: '16:00',
-          priority: 'high',
-          completed: false,
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: '2',
-          project_id: '1',
-          title: 'Team meeting preparation',
-          description: 'Prepare presentation slides for weekly team meeting',
-          deadline: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
-          reminderTime: '14:00',
-          priority: 'medium',
-          completed: false,
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: '3',
-          project_id: '2',
-          title: 'Review pull request',
-          description: 'Review and approve the authentication feature PR',
-          deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          reminderTime: '10:00',
-          priority: 'low',
-          completed: true,
-          createdAt: new Date().toISOString()
-        }
-      ];
-      setTasks(mockTasks);
-      localStorage.setItem('tasks', JSON.stringify(mockTasks));
-    }
+    // Initial tasks will be fetched per selected project below
     
     setTimeout(() => setIsLoading(false), 800);
 
@@ -149,20 +141,22 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
 
   useEffect(() => {
     if (tasks.length > 0 && !isLoading) {
-      const upcomingTasks = tasks.filter(task => {
-        if (task.completed) return false;
-        const deadline = new Date(task.deadline);
-        const now = new Date();
-        const diff = deadline.getTime() - now.getTime();
-        const hours = diff / (1000 * 60 * 60);
-        return hours <= 24 && hours > 0;
-      }).map(task => ({
-        id: task.id,
-        title: task.title,
-        message: `"${task.title}" is due ${getTimeRemaining(task.deadline)}`,
-        time: new Date().toISOString(),
-        read: false
-      }));
+      const upcomingTasks = tasks
+        .filter(task => {
+          if (task.completed) return false;
+          const deadline = new Date(task.deadline);
+          const now = new Date();
+          const diff = deadline.getTime() - now.getTime();
+          const hours = diff / (1000 * 60 * 60);
+          return hours <= 24 && hours > 0;
+        })
+        .map(task => ({
+          id: task.id,
+          title: task.title,
+          message: `"${task.title}" is due ${getTimeRemaining(task.deadline)}`,
+          time: new Date().toISOString(),
+          read: false
+        }));
 
       if (upcomingTasks.length > 0) {
         setNotifications(upcomingTasks);
@@ -170,6 +164,20 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
       }
     }
   }, [tasks, isLoading]);
+
+  // Fetch tasks when a project is selected
+  useEffect(() => {
+    (async () => {
+      try {
+        if (selectedProject?.id) {
+          const list = await api.tasks.list({ project_id: selectedProject.id });
+          setTasks(Array.isArray(list) ? list : []);
+        }
+      } catch (err) {
+        // keep existing tasks if API fails
+      }
+    })();
+  }, [selectedProject?.id]);
 
   useEffect(() => {
     if (projects.length > 0 || !isLoading) {
@@ -264,33 +272,58 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
     }
   };
 
-  const handleAddTask = (taskData) => {
+  const handleAddTask = async (taskData) => {
     if (!selectedProject) {
       alert('Please select a project first!');
       return;
     }
-    
-    const newTask = {
-      ...taskData,
-      id: Date.now().toString(),
-      project_id: selectedProject.id,
-      createdAt: new Date().toISOString()
-    };
-    setTasks([newTask, ...tasks]);
-    setIsTaskModalOpen(false);
-    resetTaskForm();
+    try {
+      const authUserStr = localStorage.getItem('auth_user');
+      const authUser = authUserStr ? JSON.parse(authUserStr) : null;
+      const payload = {
+        project_id: selectedProject.id,
+        user_id: authUser?.id,
+        title: taskData.title,
+        description: taskData.description,
+        deadline: taskData.deadline || null,
+        priority: taskData.priority,
+        status: 'pending',
+        reminders: taskData.reminderTime ? [taskData.reminderTime] : [],
+      };
+      const created = await api.tasks.create(payload);
+      setTasks([created, ...tasks]);
+      setIsTaskModalOpen(false);
+      resetTaskForm();
+    } catch (err) {
+      alert(err?.data?.message || err.message || 'Failed to create task');
+    }
   };
 
   const handleEditTask = (taskData) => {
     if (editingTask) {
-      setTasks(tasks.map(t => 
-        t.id === editingTask.id 
-          ? { ...taskData, id: t.id, project_id: t.project_id, createdAt: t.createdAt }
-          : t
-      ));
-      setEditingTask(null);
-      setIsTaskModalOpen(false);
-      resetTaskForm();
+      (async () => {
+        try {
+          const authUserStr = localStorage.getItem('auth_user');
+          const authUser = authUserStr ? JSON.parse(authUserStr) : null;
+          const payload = {
+            project_id: editingTask.project_id,
+            user_id: authUser?.id,
+            title: taskData.title,
+            description: taskData.description,
+            deadline: taskData.deadline || null,
+            priority: taskData.priority,
+            status: taskData.completed ? 'completed' : undefined,
+            reminders: taskData.reminderTime ? [taskData.reminderTime] : undefined,
+          };
+          const updated = await api.tasks.update(editingTask.id, payload);
+          setTasks(tasks.map(t => t.id === editingTask.id ? { ...t, ...updated } : t));
+          setEditingTask(null);
+          setIsTaskModalOpen(false);
+          resetTaskForm();
+        } catch (err) {
+          alert(err?.data?.message || err.message || 'Failed to update task');
+        }
+      })();
     }
   };
 
@@ -332,14 +365,47 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const openEditTaskModal = (task) => {
+    const toLocalInput = (value) => {
+      if (!value) return '';
+      try {
+        const d = new Date(value);
+        const pad = (n) => String(n).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        const mm = pad(d.getMonth() + 1);
+        const dd = pad(d.getDate());
+        const hh = pad(d.getHours());
+        const mi = pad(d.getMinutes());
+        return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+      } catch {
+        return '';
+      }
+    };
+
+    const getReminderTime = (t) => {
+      // Prefer a direct field if present
+      if (t && t.reminderTime) return t.reminderTime;
+      // Handle reminders as array of strings
+      if (Array.isArray(t?.reminders) && t.reminders.length > 0) {
+        const first = t.reminders[0];
+        if (typeof first === 'string') return first;
+        // Handle array of objects with possible keys
+        if (typeof first === 'object' && first) {
+          // Support backend schema: remind_at
+          return first.remind_at || first.reminder_time || first.reminderTime || first.time || first.datetime || '';
+        }
+      }
+      // Some backends may expose reminderTime at task level via different key
+      return t?.reminder_time || '';
+    };
+
     setEditingTask(task);
     setTaskFormData({
-      title: task.title,
-      description: task.description,
-      deadline: task.deadline.split('T')[0] + 'T' + task.deadline.split('T')[1].slice(0, 5),
-      reminderTime: task.reminderTime,
-      priority: task.priority,
-      completed: task.completed
+      title: task.title || '',
+      description: task.description || '',
+      deadline: toLocalInput(task.deadline),
+      reminderTime: toLocalInput(getReminderTime(task)),
+      priority: task.priority || 'medium',
+      completed: !!task.completed
     });
     setIsTaskModalOpen(true);
     setOpenMenuId(null);
@@ -427,17 +493,10 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
   if (showProfile) {
     return (
       <Profile
-        currentUser={currentUser}
-        onLogout={() => {
-          try {
-            localStorage.removeItem('auth_user');
-            localStorage.removeItem('auth_token');
-          } catch {}
-          onLogout && onLogout();
-          onNavigate && onNavigate('login');
-        }}
+        currentUser={resolvedUser}
+        onLogout={logout}
         onBack={() => {
-          const updatedName = localStorage.getItem('userName') || (currentUser ? currentUser.split('@')[0] : 'User');
+          const updatedName = localStorage.getItem('userName') || (resolvedUser ? (resolvedUser.split('@')[0] || resolvedUser) : 'User');
           setDisplayName(updatedName);
           setShowProfile(false);
         }}
@@ -878,30 +937,34 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
 
                           <div className="relative">
                             <button
-                              onClick={() => setOpenMenuId(openMenuId === task.id ? null : task.id)}
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === task.id ? null : task.id); }}
                               className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-white/10 rounded-lg transition-colors"
                             >
                               <MoreVertical className="w-5 h-5 text-[#1A1A1A] dark:text-white" />
                             </button>
 
-                            {openMenuId === task.id && (
-                              <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-[#2A2A2A] rounded-xl shadow-lg border border-[#E8E8E8] dark:border-[#333] py-2 z-10">
-                                <button
-                                  onClick={() => openEditTaskModal(task)}
+                              {openMenuId === task.id && (
+                                <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-[#2A2A2A] rounded-xl shadow-lg border border-[#E8E8E8] dark:border-[#333] py-2 z-20">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); openEditTaskModal(task); }}
                                   className="w-full px-4 py-2 text-left text-[#1A1A1A] dark:text-white hover:bg-[#F5F5F5] dark:hover:bg-white/10 flex items-center gap-2 text-sm"
                                 >
                                   <Edit2 className="w-4 h-4" />
                                   Edit
                                 </button>
-                                <button
-                                  onClick={() => handleShareTask(task.id)}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); handleShareTask(task.id); }}
                                   className="w-full px-4 py-2 text-left text-[#1A1A1A] dark:text-white hover:bg-[#F5F5F5] dark:hover:bg-white/10 flex items-center gap-2 text-sm"
                                 >
                                   <Share2 className="w-4 h-4" />
                                   Share
                                 </button>
-                                <button
-                                  onClick={() => handleDeleteTask(task.id)}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}
                                   className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-600/10 flex items-center gap-2 text-sm"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -1096,7 +1159,7 @@ export default function Dashboard({ onNavigate, onLogout, currentUser }) {
                   Reminder Time
                 </label>
                 <input
-                  type="time"
+                  type="datetime-local"
                   value={taskFormData.reminderTime}
                   onChange={(e) => setTaskFormData({ ...taskFormData, reminderTime: e.target.value })}
                   className="w-full px-4 py-3 bg-[#F5F5F5] dark:bg-white/5 border border-[#E8E8E8] dark:border-[#333] rounded-xl text-[#1A1A1A] dark:text-white focus:outline-none focus:border-[#4CAF50] transition-all"

@@ -30,16 +30,26 @@ class TaskController extends Controller
         ]);
 
         $task = $this->service->createTask($data);
-
+        // Include reminders in response
+        $task->load('reminders');
         return response()->json($task);
     }
 
     public function index(Request $request)
     {
         $projectId = $request->query('project_id');
-        $tasks = $projectId ? $this->service->getTasksByProject($projectId) 
+        $tasks = $projectId ? $this->service->getTasksByProject($projectId)
             : $this->service->getAllTasks();
-
+        // Eager load reminders for all tasks
+        if (method_exists($tasks, 'load')) {
+            $tasks->load('reminders');
+        } else if (is_array($tasks)) {
+            // In case service returns array, map and load relation
+            $tasks = collect($tasks)->map(function ($t) {
+                if ($t instanceof Task) { $t->load('reminders'); }
+                return $t;
+            });
+        }
         return response()->json($tasks);
     }
 
@@ -57,7 +67,8 @@ class TaskController extends Controller
         ]);
 
         $updatedTask = $this->service->updateTask($task, $data);
-
+        // Include reminders in response
+        $updatedTask->load('reminders');
         return response()->json($updatedTask);
     }
 
@@ -69,7 +80,7 @@ class TaskController extends Controller
 
     public function share(Request $request, Task $task)
     {
-        $task->load('project');
+        $task->load(['project', 'reminders']);
 
         if ($task->project->is_private) {
             return response()->json([

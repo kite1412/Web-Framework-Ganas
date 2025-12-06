@@ -37,7 +37,7 @@ export default function Home() {
               <CheckCircle className="w-5 h-5 text-white" />
             </div>
             <span className="text-[#1A1A1A] dark:text-white font-medium">
-              SemTu (Semi-Tugas)
+              Semi Tugas
             </span>
           </div>
 
@@ -217,7 +217,7 @@ export default function Home() {
                   <CheckCircle className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-[#1A1A1A] dark:text-white font-semibold">
-                  SemTu
+                  Semi Tugas
                 </span>
               </div>
               <p className="text-[#1A1A1A]/60 dark:text-white/60 text-sm leading-relaxed">
@@ -299,7 +299,7 @@ export default function Home() {
           <div className="pt-8 border-t border-[#E8E8E8] dark:border-white/10">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <p className="text-[#1A1A1A]/60 dark:text-white/60 text-sm text-center md:text-left">
-                © 2025 SemTu (Semi-Tugas). Hak cipta dilindungi.
+                © 2025 Semi Tugas. Hak cipta dilindungi.
               </p>
               <div className="flex gap-6">
                 <a href="#" className="text-[#1A1A1A]/60 dark:text-white/60 hover:text-[#4CAF50] dark:hover:text-[#4CAF50] text-sm transition">

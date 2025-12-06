@@ -1,3 +1,4 @@
+import { Head } from '@inertiajs/react';
 import 'flatpickr/dist/flatpickr.css';
 import {
   Bell,
@@ -765,7 +766,8 @@ export default function Dashboard() {
   };
 
   if (showProfile) {
-    return (
+    return <>
+      <Head title="Profil" />
       <Profile
         currentUser={resolvedUser}
         onLogout={logout}
@@ -775,7 +777,7 @@ export default function Dashboard() {
           setShowProfile(false);
         }}
       />
-    );
+    </>;
   }
 
   if (isLoading) {
@@ -792,6 +794,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-[#F5F5F5] dark:from-[#0F0F0F] dark:to-[#1A1A1A] transition-colors">
       {/* Header */}
+      <Head title="Dashboard" />
       <header className="border-b border-[#E8E8E8] dark:border-white/10 bg-white/80 dark:bg-black/30 backdrop-blur-sm sticky top-0 z-40 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -799,7 +802,7 @@ export default function Dashboard() {
               <div className="w-8 h-8 bg-[#4CAF50] rounded-lg flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-white" />
               </div>
-              <span className="text-[#1A1A1A] dark:text-white hidden sm:block font-medium">SemTu (Semi-Tugas)</span>
+              <span className="text-[#1A1A1A] dark:text-white hidden sm:block font-medium">Semi Tugas</span>
             </div>
 
             <div className="flex items-center gap-3">

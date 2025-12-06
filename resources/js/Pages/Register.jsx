@@ -2,6 +2,7 @@ import { ArrowLeft, Lock, Phone, User } from "lucide-react";
 import { useState } from "react";
 import useTheme from "../Components/useTheme";
 import api from "../api/client";
+import { Head } from "@inertiajs/react";
 
 export default function RegisterPage() {
   const { theme, mounted } = useTheme();
@@ -50,6 +51,7 @@ export default function RegisterPage() {
 
   return (
     <div className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${theme === "light" ? "bg-gradient-to-br from-white to-[#F5F5F5]" : "bg-gradient-to-br from-[#0F0F0F] to-[#1A1A1A]"}`}>
+      <Head title="Registrasi" />
       <div className={`max-w-md w-full p-8 rounded-2xl shadow-2xl border ${theme === "light" ? "bg-white border-[#E8E8E8]" : "bg-[#161616] border-white/10"} transition-colors duration-300`}>
         <a
           href="/"

@@ -1,6 +1,7 @@
 import { ArrowLeft, CheckCircle, Lock, Phone } from "lucide-react";
 import { useState } from "react";
 import useTheme from "../Components/useTheme";
+import { Head } from '@inertiajs/react';
 import api, { setToken } from "../api/client";
 
 export default function LoginPage() {
@@ -47,6 +48,7 @@ export default function LoginPage() {
 
   return (
     <div className={`min-h-screen bg-gradient-to-br ${theme === 'light' ? 'from-white to-[#F5F5F5]' : 'from-[#0F0F0F] to-[#1A1A1A]'} flex items-center justify-center px-4 py-8 transition-colors`}>
+      <Head title="Login" />
       <div className="w-full max-w-md">
         <a
           href="/"

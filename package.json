@@ -24,6 +24,8 @@
     },
     "dependencies": {
         "framer-motion": "^12.23.24",
-        "lucide-react": "^0.555.0"
+        "lucide-react": "^0.555.0",
+        "flatpickr": "^4.6.13",
+        "react-flatpickr": "^3.10.7"
     }
 }

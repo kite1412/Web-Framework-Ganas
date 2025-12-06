@@ -1,3 +1,4 @@
+import 'flatpickr/dist/flatpickr.css';
 import {
   Bell,
   CheckCircle,
@@ -18,7 +19,7 @@ import {
   User,
   X
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Profile from '../Components/Profile';
 import ShareModal from '../Components/ShareModal';
 import api from '../api/client';
@@ -99,6 +100,41 @@ export default function Dashboard() {
     priority: 'medium',
     completed: false
   });
+
+  const deadlinePickerRef = useRef(null);
+  const reminderPickerRef = useRef(null);
+  const [deadlineTemp, setDeadlineTemp] = useState(null);
+  const [reminderTemp, setReminderTemp] = useState(null);
+
+  useEffect(() => {
+    if (taskFormData.deadline) {
+      const [date, time] = taskFormData.deadline.split('T');
+      // Only create a Date when the time portion is present and non-empty.
+      if (time && time.length > 0) {
+        const parsed = new Date(`${date}T${time}`);
+        setDeadlineTemp(isNaN(parsed.getTime()) ? null : parsed);
+      } else {
+        setDeadlineTemp(null);
+      }
+    } else {
+      setDeadlineTemp(null);
+    }
+  }, [taskFormData.deadline]);
+
+  useEffect(() => {
+    if (taskFormData.reminderTime) {
+      const [date, time] = taskFormData.reminderTime.split('T');
+      // Only create a Date when the time portion is present and non-empty.
+      if (time && time.length > 0) {
+        const parsed = new Date(`${date}T${time}`);
+        setReminderTemp(isNaN(parsed.getTime()) ? null : parsed);
+      } else {
+        setReminderTemp(null);
+      }
+    } else {
+      setReminderTemp(null);
+    }
+  }, [taskFormData.reminderTime]);
 
   useEffect(() => {
     // Redirect to login if not authenticated
@@ -345,15 +381,17 @@ export default function Dashboard() {
     try {
       const authUserStr = localStorage.getItem('auth_user');
       const authUser = authUserStr ? JSON.parse(authUserStr) : null;
+      const finalDeadline = taskData.deadline && String(taskData.deadline).endsWith('T') ? null : (taskData.deadline || null);
+      const reminders = taskData.reminderTime && !String(taskData.reminderTime).endsWith('T') ? [taskData.reminderTime] : [];
       const payload = {
         project_id: selectedProject.id,
         user_id: authUser?.id,
         title: taskData.title,
         description: taskData.description,
-        deadline: taskData.deadline || null,
+        deadline: finalDeadline,
         priority: taskData.priority,
         status: 'pending',
-        reminders: taskData.reminderTime ? [taskData.reminderTime] : [],
+        reminders,
       };
       const created = await api.tasks.create(payload);
       setTasks([created, ...tasks]);
@@ -375,15 +413,17 @@ export default function Dashboard() {
         try {
           const authUserStr = localStorage.getItem('auth_user');
           const authUser = authUserStr ? JSON.parse(authUserStr) : null;
+          const finalDeadline = taskData.deadline && String(taskData.deadline).endsWith('T') ? null : (taskData.deadline || null);
+          const reminders = taskData.reminderTime && !String(taskData.reminderTime).endsWith('T') ? [taskData.reminderTime] : undefined;
           const payload = {
             project_id: editingTask.project_id,
             user_id: authUser?.id,
             title: taskData.title,
             description: taskData.description,
-            deadline: taskData.deadline || null,
+            deadline: finalDeadline,
             priority: taskData.priority,
             status: taskData.completed ? 'completed' : undefined,
-            reminders: taskData.reminderTime ? [taskData.reminderTime] : undefined,
+            reminders,
           };
           const updated = await api.tasks.update(editingTask.id, payload);
           setTasks(tasks.map(t => t.id === editingTask.id ? { ...t, ...updated } : t));
@@ -551,6 +591,45 @@ export default function Dashboard() {
       handleEditTask(taskFormData);
     } else {
       handleAddTask(taskFormData);
+    }
+  };
+
+  // Minimum selectable datetime for inputs (prevent past selection)
+  const getMinLocalDateTime = () => {
+    try {
+      const d = new Date();
+      // round down to nearest minute
+      d.setSeconds(0, 0);
+      const pad = (n) => String(n).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      const mm = pad(d.getMonth() + 1);
+      const dd = pad(d.getDate());
+      const hh = pad(d.getHours());
+      const mi = pad(d.getMinutes());
+      return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+    } catch {
+      return '';
+    }
+  };
+
+  const getTodayDate = () => {
+    try {
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    } catch {
+      return '';
+    }
+  };
+
+  const getMinTimeForDate = (dateStr) => {
+    try {
+      const min = getMinLocalDateTime();
+      if (!min) return undefined;
+      const [minDate, minTime] = min.split('T');
+      return dateStr === minDate ? minTime : undefined;
+    } catch {
+      return undefined;
     }
   };
 
@@ -771,12 +850,22 @@ export default function Dashboard() {
                         <p className="text-[#1A1A1A]/60 dark:text-white/60 text-sm mb-1">
                           {notif.message}
                         </p>
-                        <p className="text-[#1A1A1A]/40 dark:text-white/40 text-xs">
-                          {new Date(notif.time).toLocaleTimeString('en-US', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </p>
+                        {/* Vertical arrangement for status and deadline */}
+                        <div className="flex flex-col gap-0.5 mt-2">
+                          <span className="text-[#1A1A1A]/40 dark:text-white/40 text-xs">
+                            Status: {notif.completed ? 'Selesai' : (notif.deadline && new Date(notif.deadline) < new Date() ? 'Terlambat' : 'Tertunda')}
+                          </span>
+                          <span className="text-[#1A1A1A]/40 dark:text-white/40 text-xs">
+                            Deadline: {notif.deadline ? new Date(notif.deadline).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}
+                          </span>
+                          <span className="text-[#1A1A1A]/40 dark:text-white/40 text-xs">
+                            {new Date(notif.time).toLocaleTimeString('id-ID', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: false
+                            })}
+                          </span>
+                        </div>
                       </div>
                       <button
                         onClick={() => handleClearNotification(notif.id)}
@@ -1030,27 +1119,39 @@ export default function Dashboard() {
                             {task.completed && <CheckCircle className="w-4 h-4 text-white" />}
                           </button>
 
-                          <div className="flex-1 min-w-0">
-                            <h3 className={`text-[#1A1A1A] dark:text-white mb-1 font-medium ${task.completed ? 'line-through opacity-50' : ''}`}>
-                              {task.title}
-                            </h3>
-                            <p className={`text-[#1A1A1A]/60 dark:text-white/60 text-sm mb-3 ${task.completed ? 'line-through opacity-50' : ''}`}>
-                              {task.description}
-                            </p>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <div className="flex items-center gap-1 text-[#1A1A1A]/60 dark:text-white/60 text-sm">
-                                <Clock className="w-4 h-4" />
-                                <span>{getTimeRemaining(task.deadline)}</span>
+                            <div className="flex-1 min-w-0">
+                              <h3 className={`text-[#1A1A1A] dark:text-white mb-1 font-medium ${task.completed ? 'line-through opacity-50' : ''}`}>{task.title}</h3>
+                              <p className={`text-[#1A1A1A]/60 dark:text-white/60 text-sm mb-3 ${task.completed ? 'line-through opacity-50' : ''}`}>{task.description}</p>
+                              <div className="flex flex-col gap-2">
+                                <span className={`inline-flex w-max whitespace-nowrap px-2 py-0.5 rounded-md text-xs ${
+                                  task.priority === 'high' ? 'bg-red-100 text-red-600 dark:bg-red-600/20 dark:text-red-400' :
+                                  task.priority === 'medium' ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-600/20 dark:text-yellow-300' :
+                                  'bg-blue-100 text-blue-600 dark:bg-blue-600/20 dark:text-blue-300'
+                                }`}>
+                                  {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                                </span>
+                                <div className="flex flex-col gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 text-[#1A1A1A]/60 dark:text-white/60 text-sm">
+                                      <Clock className="w-4 h-4" />
+                                      <span>{getTimeRemaining(task.deadline)}</span>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex flex-col gap-1 text-[#1A1A1A]/40 dark:text-white/40 text-xs">
+                                    <span>
+                                      <strong className="font-medium">Deadline:</strong>{' '}
+                                      {task.deadline ? new Date(task.deadline).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}
+                                    </span>
+
+                                    <span>
+                                      <strong className="font-medium">Status:</strong>{' '}
+                                      {task.completed ? 'Selesai' : (task.deadline && new Date(task.deadline) < new Date() ? 'Terlambat' : 'Tertunda')}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
-                              <span className={`px-2 py-1 rounded-md text-xs ${
-                                task.priority === 'high' ? 'bg-red-100 text-red-600 dark:bg-red-600/20 dark:text-red-400' :
-                                task.priority === 'medium' ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-600/20 dark:text-yellow-300' :
-                                'bg-blue-100 text-blue-600 dark:bg-blue-600/20 dark:text-blue-300'
-                              }`}>
-                                {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                              </span>
                             </div>
-                          </div>
 
                           <div className="relative">
                             <button
@@ -1104,7 +1205,7 @@ export default function Dashboard() {
       {/* Add/Edit Project Modal */}
       {isProjectModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-[#2A2A2A] rounded-2xl w-full max-w-md p-6 shadow-2xl">
+          <div className="bg-white dark:bg-[#2A2A2A] rounded-2xl w-full max-w-lg p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-[#1A1A1A] dark:text-white text-xl font-semibold">
                 {editingProject ? 'Ubah Proyek' : 'Buat Proyek Baru'}
@@ -1213,7 +1314,7 @@ export default function Dashboard() {
       {/* Add/Edit Task Modal */}
       {isTaskModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-[#2A2A2A] rounded-2xl w-full max-w-md p-6 shadow-2xl">
+          <div className="bg-white dark:bg-[#2A2A2A] rounded-2xl w-full max-w-lg p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-[#1A1A1A] dark:text-white text-xl font-semibold">
                 {editingTask ? 'Ubah Tugas' : 'Tambah Tugas Baru'}
@@ -1262,25 +1363,169 @@ export default function Dashboard() {
                 <label className="block text-[#1A1A1A] dark:text-white text-sm font-medium mb-2">
                   Tenggat Waktu *
                 </label>
-                <input
-                  type="datetime-local"
-                  value={taskFormData.deadline}
-                  onChange={(e) => setTaskFormData({ ...taskFormData, deadline: e.target.value })}
-                  required
-                  className="w-full px-4 py-3 bg-[#F5F5F5] dark:bg-white/5 border border-[#E8E8E8] dark:border-[#333] rounded-xl text-[#1A1A1A] dark:text-white focus:outline-none focus:border-[#4CAF50] transition-all"
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="date"
+                    value={(taskFormData.deadline || '').split('T')[0] || ''}
+                    onChange={(e) => {
+                      const date = e.target.value;
+                      const time = (taskFormData.deadline || '').split('T')[1] || '00:00';
+                      setTaskFormData({ ...taskFormData, deadline: date ? `${date}T${time}` : '' });
+                    }}
+                    required
+                    min={getTodayDate()}
+                    className="w-full px-4 py-3 bg-[#F5F5F5] dark:bg-white/5 border border-[#E8E8E8] dark:border-[#333] rounded-xl text-[#1A1A1A] dark:text-white focus:outline-none focus:border-[#4CAF50] transition-all"
+                  />
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center">
+                      <div className="flex flex-col items-center mr-2">
+                        <span className="text-xs text-[#1A1A1A]/60 dark:text-white/60 mb-1">Jam</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="23"
+                          value={deadlineTemp ? deadlineTemp.getHours() : ((taskFormData.deadline && ((taskFormData.deadline || '').split('T')[1] || '') !== '' && (((taskFormData.deadline || '').split('T')[1] || '').split(':')[0] !== '') ) ? Number(((taskFormData.deadline || '').split('T')[1] || '').split(':')[0]) : '')}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            const date = (taskFormData.deadline || '').split('T')[0] || getTodayDate();
+                            if (raw === '' || raw === null) {
+                              const miPart = (taskFormData.deadline || '').split('T')[1] || '';
+                              const mi = miPart && miPart.split(':')[1] !== undefined ? miPart.split(':')[1] : '';
+                              setDeadlineTemp(null);
+                              setTaskFormData({ ...taskFormData, deadline: date ? `${date}T:${mi}` : '' });
+                              return;
+                            }
+                            const num = Number(raw);
+                            const hh = Number.isNaN(num) ? 0 : Math.max(0, Math.min(23, num));
+                            const miVal = deadlineTemp ? deadlineTemp.getMinutes() : ((taskFormData.deadline && ((taskFormData.deadline || '').split('T')[1] || '').length > 0) ? Number(((taskFormData.deadline || '').split('T')[1] || '').split(':')[1]) : 0);
+                            const hhStr = String(hh).padStart(2, '0');
+                            const miStr = String(miVal).padStart(2, '0');
+                            const d = new Date(`${date}T${hhStr}:${miStr}`);
+                            setDeadlineTemp(d);
+                            setTaskFormData({ ...taskFormData, deadline: `${date}T${hhStr}:${miStr}` });
+                          }}
+                          className="w-20 px-2 py-2 border rounded-xl text-sm bg-white dark:bg-[#1A1A1A] text-[#1A1A1A] dark:text-white border-[#E8E8E8] dark:border-[#333]"
+                        />
+                      </div>
+                      <span className="text-sm mt-6">:</span>
+                      <div className="flex flex-col items-center ml-2">
+                        <span className="text-xs text-[#1A1A1A]/60 dark:text-white/60 mb-1">Menit</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="59"
+                          value={deadlineTemp ? deadlineTemp.getMinutes() : ((taskFormData.deadline && ((taskFormData.deadline || '').split('T')[1] || '') !== '' && (((taskFormData.deadline || '').split('T')[1] || '').split(':')[1] !== undefined && ((taskFormData.deadline || '').split('T')[1] || '').split(':')[1] !== '') ) ? Number(((taskFormData.deadline || '').split('T')[1] || '').split(':')[1]) : '')}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            const date = (taskFormData.deadline || '').split('T')[0] || getTodayDate();
+                            if (raw === '' || raw === null) {
+                              const hhPart = (taskFormData.deadline || '').split('T')[1] || '';
+                              const hh = hhPart && hhPart.split(':')[0] !== undefined ? hhPart.split(':')[0] : '';
+                              setDeadlineTemp(null);
+                              setTaskFormData({ ...taskFormData, deadline: date ? `${date}T${hh}:` : '' });
+                              return;
+                            }
+                            const num = Number(raw);
+                            const mi = Number.isNaN(num) ? 0 : Math.max(0, Math.min(59, num));
+                            const hhVal = deadlineTemp ? deadlineTemp.getHours() : ((taskFormData.deadline && ((taskFormData.deadline || '').split('T')[1] || '').length > 0) ? Number(((taskFormData.deadline || '').split('T')[1] || '').split(':')[0]) : 0);
+                            const hhStr = String(hhVal).padStart(2, '0');
+                            const miStr = String(mi).padStart(2, '0');
+                            const d = new Date(`${date}T${hhStr}:${miStr}`);
+                            setDeadlineTemp(d);
+                            setTaskFormData({ ...taskFormData, deadline: `${date}T${hhStr}:${miStr}` });
+                          }}
+                          className="w-20 px-2 py-2 border rounded-xl text-sm bg-white dark:bg-[#1A1A1A] text-[#1A1A1A] dark:text-white border-[#E8E8E8] dark:border-[#333]"
+                        />
+                      </div>
+                    </div>
+                    {/* Confirm button removed — time commits on change */}
+                  </div>
+                </div>
               </div>
 
               <div>
                 <label className="block text-[#1A1A1A] dark:text-white text-sm font-medium mb-2">
                   Waktu Pengingat
                 </label>
-                <input
-                  type="datetime-local"
-                  value={taskFormData.reminderTime}
-                  onChange={(e) => setTaskFormData({ ...taskFormData, reminderTime: e.target.value })}
-                  className="w-full px-4 py-3 bg-[#F5F5F5] dark:bg-white/5 border border-[#E8E8E8] dark:border-[#333] rounded-xl text-[#1A1A1A] dark:text-white focus:outline-none focus:border-[#4CAF50] transition-all"
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="date"
+                    value={(taskFormData.reminderTime || '').split('T')[0] || ''}
+                    onChange={(e) => {
+                      const date = e.target.value;
+                      const time = (taskFormData.reminderTime || '').split('T')[1] || '00:00';
+                      setTaskFormData({ ...taskFormData, reminderTime: date ? `${date}T${time}` : '' });
+                    }}
+                    min={getTodayDate()}
+                    className="w-full px-4 py-3 bg-[#F5F5F5] dark:bg-white/5 border border-[#E8E8E8] dark:border-[#333] rounded-xl text-[#1A1A1A] dark:text-white focus:outline-none focus:border-[#4CAF50] transition-all"
+                  />
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center">
+                      <div className="flex flex-col items-center mr-2">
+                        <span className="text-xs text-[#1A1A1A]/60 dark:text-white/60 mb-1">Jam</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="23"
+                          value={reminderTemp ? reminderTemp.getHours() : ((taskFormData.reminderTime && ((taskFormData.reminderTime || '').split('T')[1] || '') !== '' && (((taskFormData.reminderTime || '').split('T')[1] || '').split(':')[0] !== '') ) ? Number(((taskFormData.reminderTime || '').split('T')[1] || '').split(':')[0]) : '')}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            const date = (taskFormData.reminderTime || '').split('T')[0] || getTodayDate();
+                            if (raw === '' || raw === null) {
+                              const miPart = (taskFormData.reminderTime || '').split('T')[1] || '';
+                              const mi = miPart && miPart.split(':')[1] !== undefined ? miPart.split(':')[1] : '';
+                              setReminderTemp(null);
+                              setTaskFormData({ ...taskFormData, reminderTime: date ? `${date}T:${mi}` : '' });
+                              return;
+                            }
+                            const num = Number(raw);
+                            const hh = Number.isNaN(num) ? 0 : Math.max(0, Math.min(23, num));
+                            const miVal = reminderTemp ? reminderTemp.getMinutes() : ((taskFormData.reminderTime && ((taskFormData.reminderTime || '').split('T')[1] || '').length > 0) ? Number(((taskFormData.reminderTime || '').split('T')[1] || '').split(':')[1]) : 0);
+                            const hhStr = String(hh).padStart(2, '0');
+                            const miStr = String(miVal).padStart(2, '0');
+                            const d = new Date(`${date}T${hhStr}:${miStr}`);
+                            setReminderTemp(d);
+                            setTaskFormData({ ...taskFormData, reminderTime: `${date}T${hhStr}:${miStr}` });
+                          }}
+                          className="w-20 px-2 py-2 border rounded-xl text-sm bg-white dark:bg-[#1A1A1A] text-[#1A1A1A] dark:text-white border-[#E8E8E8] dark:border-[#333]"
+                        />
+                      </div>
+                      <span className="text-sm mt-6">:</span>
+                      <div className="flex flex-col items-center ml-2">
+                        <span className="text-xs text-[#1A1A1A]/60 dark:text-white/60 mb-1">Menit</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="59"
+                          value={reminderTemp ? reminderTemp.getMinutes() : ((taskFormData.reminderTime && ((taskFormData.reminderTime || '').split('T')[1] || '') !== '' && (((taskFormData.reminderTime || '').split('T')[1] || '').split(':')[1] !== undefined && ((taskFormData.reminderTime || '').split('T')[1] || '').split(':')[1] !== '') ) ? Number(((taskFormData.reminderTime || '').split('T')[1] || '').split(':')[1]) : '')}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            const date = (taskFormData.reminderTime || '').split('T')[0] || getTodayDate();
+                            if (raw === '' || raw === null) {
+                              const hhPart = (taskFormData.reminderTime || '').split('T')[1] || '';
+                              const hh = hhPart && hhPart.split(':')[0] !== undefined ? hhPart.split(':')[0] : '';
+                              setReminderTemp(null);
+                              setTaskFormData({ ...taskFormData, reminderTime: date ? `${date}T${hh}:` : '' });
+                              return;
+                            }
+                            const num = Number(raw);
+                            const mi = Number.isNaN(num) ? 0 : Math.max(0, Math.min(59, num));
+                            const hhVal = reminderTemp ? reminderTemp.getHours() : ((taskFormData.reminderTime && ((taskFormData.reminderTime || '').split('T')[1] || '').length > 0) ? Number(((taskFormData.reminderTime || '').split('T')[1] || '').split(':')[0]) : 0);
+                            const hhStr = String(hhVal).padStart(2, '0');
+                            const miStr = String(mi).padStart(2, '0');
+                            const d = new Date(`${date}T${hhStr}:${miStr}`);
+                            setReminderTemp(d);
+                            setTaskFormData({ ...taskFormData, reminderTime: `${date}T${hhStr}:${miStr}` });
+                          }}
+                          className="w-20 px-2 py-2 border rounded-xl text-sm bg-white dark:bg-[#1A1A1A] text-[#1A1A1A] dark:text-white border-[#E8E8E8] dark:border-[#333]"
+                        />
+                      </div>
+                    </div>
+                    {/* Confirm button removed — reminder commits on change */}
+                  </div>
+                </div>
               </div>
 
               <div>

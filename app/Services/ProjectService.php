@@ -32,6 +32,8 @@ class ProjectService
             foreach ($tasks as $task) {
                 $newTask = $task->replicate();
                 $newTask->project_id = $newProject->id;
+                // Make the copied task belong to the copying user so reminders go to them
+                $newTask->user_id = $userId;
                 $newTask->save();
 
                 // Copy reminders for the task (non-deleted reminders)
@@ -45,9 +47,10 @@ class ProjectService
                         $newRem->save();
                         // schedule a reminder job for the copied reminder if it's in the future
                         try {
-                            $remindAt = $newRem->remind_at;
-                            if ($remindAt) {
-                                dispatch((new SendTaskReminderJob($newRem->id))->delay($remindAt));
+                            $remindAt = Carbon::parse($newRem->remind_at);
+                            if ($remindAt->isFuture()) {
+                                // pass a DateTime instance to delay() to ensure the queue driver interprets it correctly
+                                dispatch((new SendTaskReminderJob($newRem->id))->delay($remindAt->toDateTime()));
                             }
                         } catch (\Throwable $e) {
                             // ignore scheduling errors

@@ -22,7 +22,7 @@ export default function ShareModal({ isOpen, onClose, item, itemType, theme }) {
   const canShare = itemType === 'project' ? isPublic : (project && !project.is_private);
 
   // Generate share link
-  const shareLink = `${window.location.origin}/shared/${itemType}/${item.id}`;
+  const shareLink = `${window.location.origin}/${itemType}/${item.id}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareLink);

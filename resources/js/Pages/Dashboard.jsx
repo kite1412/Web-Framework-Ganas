@@ -1252,14 +1252,6 @@ export default function Dashboard() {
                                 </button>
                                   <button
                                     type="button"
-                                    onClick={(e) => { e.stopPropagation(); handleShareTask(task.id); }}
-                                  className="w-full px-4 py-2 text-left text-[#1A1A1A] dark:text-white hover:bg-[#F5F5F5] dark:hover:bg-white/10 flex items-center gap-2 text-sm"
-                                >
-                                  <Share2 className="w-4 h-4" />
-                                  Bagikan
-                                </button>
-                                  <button
-                                    type="button"
                                     onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}
                                   className="w-full px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-600/10 flex items-center gap-2 text-sm"
                                 >

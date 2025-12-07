@@ -29,10 +29,16 @@ class ProjectController extends Controller
         return response()->json($project, 201);
     }
 
-    public function copy(Request $request, Project $project)
+    public function copy(Request $request)
     {
+        $data = $request->validate([
+            'project_id' => 'required|integer|exists:projects,id',
+        ]);
+
+        $project = Project::findOrFail($data['project_id']);
+
         $newProject = $this->service->copyProject($project, $request->user()->id);
-        return response()->json($newProject);
+        return response()->json($newProject, 201);
     }
 
     public function index(Request $request)
@@ -48,6 +54,22 @@ class ProjectController extends Controller
         $projects = $query->get();
 
         return response()->json($projects);
+    }
+
+    public function show(Request $request, Project $project)
+    {
+        // If project is private, only the owner can view it
+        if (!empty($project->is_private)) {
+            $user = $request->user();
+            if (!$user || $user->id !== $project->user_id) {
+                return response()->json([
+                    'message' => 'Project is private',
+                    'error' => 'project_private'
+                ], 403);
+            }
+        }
+
+        return response()->json($project);
     }
 
     public function share(Request $request, Project $project)

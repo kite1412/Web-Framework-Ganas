@@ -75,9 +75,11 @@ export const api = {
       const qs = new URLSearchParams(params).toString();
       return request(`/projects${qs ? `?${qs}` : ``}`);
     },
+    get: (projectId) => request(`/projects/${projectId}`),
     create: (payload) => request("/projects", { method: "POST", body: payload }),
     update: (projectId, payload) => request(`/projects/${projectId}`, { method: "PUT", body: payload }),
-    copy: (projectId) => request(`/projects/${projectId}/copy`, { method: "POST" }),
+    // Copy a project by id (POST body: { project_id })
+    copy: (projectId) => request(`/projects/copy`, { method: "POST", body: { project_id: projectId } }),
     share: (projectId) => request(`/projects/${projectId}/share`, { method: "POST" }),
     delete: (projectId) => request(`/projects/${projectId}`, { method: "DELETE" }),
   },

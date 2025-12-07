@@ -5,8 +5,8 @@ import {
   CheckCircle,
   Edit2,
   LogOut,
+  Mail,
   Moon,
-  Phone,
   Sun,
   User
 } from 'lucide-react';
@@ -29,12 +29,12 @@ export default function Profile({ currentUser, onLogout, onBack }) {
     || (parsedAuthUser?.email ? parsedAuthUser.email.split('@')[0] : null)
     || (currentUser ? (currentUser.split('@')[0] || currentUser) : 'Pengguna');
 
-  const initialPhone = parsedAuthUser?.phone_number || parsedAuthUser?.phone || localStorage.getItem('userPhone') || currentUser || '081234567890';
+  const initialEmail = parsedAuthUser?.email || localStorage.getItem('userEmail') || currentUser || '';
 
   const [userName, setUserName] = useState(initialUserName);
   const [tempUserData, setTempUserData] = useState({
     name: userName,
-    phone_number: initialPhone,
+    email: initialEmail,
     bio: localStorage.getItem('userBio') || 'Penggemar manajemen tugas'
   });
 
@@ -46,7 +46,7 @@ export default function Profile({ currentUser, onLogout, onBack }) {
   };
 
   const handleSaveProfile = () => {
-    // Send update to API (only name). Phone number is managed elsewhere.
+    // Send update to API (only name). Email is managed elsewhere.
     (async () => {
       try {
         const token = localStorage.getItem('auth_token');
@@ -77,7 +77,7 @@ export default function Profile({ currentUser, onLogout, onBack }) {
         const newName = data?.name || tempUserData.name;
         setUserName(newName);
         localStorage.setItem('userName', newName);
-        // Do not overwrite phone in localStorage from UI (phone managed elsewhere)
+        // Do not overwrite email in localStorage from UI (email managed elsewhere)
         localStorage.setItem('userBio', tempUserData.bio);
         setIsEditMode(false);
       } catch (err) {
@@ -94,7 +94,7 @@ export default function Profile({ currentUser, onLogout, onBack }) {
   const handleCancelEdit = () => {
     setTempUserData({
       name: userName,
-      phone_number: currentUser || localStorage.getItem('userPhone') || '081234567890',
+      email: currentUser || localStorage.getItem('userEmail') || '',
       bio: localStorage.getItem('userBio') || 'Task management enthusiast'
     });
     setIsEditMode(false);
@@ -200,8 +200,8 @@ export default function Profile({ currentUser, onLogout, onBack }) {
                 {userName}
               </h1>
               <div className="flex items-center gap-2 text-[#1A1A1A]/60 dark:text-white/60 mb-1 justify-center sm:justify-start">
-                <Phone className="w-4 h-4" />
-                <span className="text-sm">{tempUserData.phone_number}</span>
+                <Mail className="w-4 h-4" />
+                <span className="text-sm">{tempUserData.email}</span>
               </div>
               <div className="flex items-center gap-2 text-[#1A1A1A]/60 dark:text-white/60 justify-center sm:justify-start">
                 <Calendar className="w-4 h-4" />
@@ -276,14 +276,14 @@ export default function Profile({ currentUser, onLogout, onBack }) {
                 />
               </div>
 
-              {/* Phone Number Field (Primary identifier) */}
+              {/* Email Field (Primary identifier) */}
               <div>
                 <label className="block text-[#1A1A1A] dark:text-white text-sm font-medium mb-2">
-                  Nomor Telepon
+                  Email
                 </label>
                 <input
-                  type="tel"
-                  value={tempUserData.phone_number}
+                  type="email"
+                  value={tempUserData.email}
                   disabled={true}
                   className="w-full px-4 py-3 bg-[#F5F5F5] dark:bg-white/5 border border-[#E8E8E8] dark:border-[#333] rounded-xl text-[#1A1A1A] dark:text-white focus:outline-none focus:border-[#4CAF50] transition-all opacity-60 cursor-not-allowed"
                 />

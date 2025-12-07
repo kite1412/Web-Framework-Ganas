@@ -1,12 +1,12 @@
-import { ArrowLeft, CheckCircle, Lock, Phone } from "lucide-react";
-import { useState } from "react";
-import useTheme from "../Components/useTheme";
 import { Head } from '@inertiajs/react';
+import { ArrowLeft, CheckCircle, Lock, Mail } from "lucide-react";
+import { useState } from "react";
 import api, { setToken } from "../api/client";
+import useTheme from "../Components/useTheme";
 
 export default function LoginPage() {
   const { theme, mounted } = useTheme();
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -19,7 +19,7 @@ export default function LoginPage() {
     try {
       // Initialize Sanctum CSRF cookie for session auth
       await api.initCsrf();
-      const resp = await api.login({ phone_number: phoneNumber, password });
+      const resp = await api.login({ email, password });
       // Store user and token in localStorage for future requests
       if (resp?.user) {
         try {
@@ -78,14 +78,14 @@ export default function LoginPage() {
               </div>
             )}
             <div>
-              <label className={`${theme === 'light' ? 'text-[#1A1A1A]' : 'text-white'} text-sm mb-2 block`}>Nomor Telepon</label>
+              <label className={`${theme === 'light' ? 'text-[#1A1A1A]' : 'text-white'} text-sm mb-2 block`}>Email</label>
               <div className="relative">
-                <Phone className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${theme === 'light' ? 'text-[#1A1A1A]/40' : 'text-white/40'}`} />
-                <input
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="Nomor Telepon"
+                  <Mail className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${theme === 'light' ? 'text-[#1A1A1A]/40' : 'text-white/40'}`} />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Email"
                   className={`w-full pl-11 pr-4 py-3 ${theme === 'light' ? 'bg-[#F5F5F5] border-[#E8E8E8] text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:bg-white' : 'bg-white/5 border-white/20 text-white placeholder:text-white/40 focus:bg-white/10'} rounded-xl focus:outline-none focus:border-[#4CAF50] transition-all`}
                   required
                 />

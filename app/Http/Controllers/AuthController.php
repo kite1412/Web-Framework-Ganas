@@ -20,7 +20,7 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'phone_number' => 'required|string|unique:users,phone_number|regex:/^[0-9+\-\s()]+$/',
+            'email' => 'required|string|email|unique:users,email',
             'password' => 'required|string|min:6',
         ]);
 
@@ -35,11 +35,11 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $validated = $request->validate([
-            'phone_number' => 'required|string',
+            'email' => 'required|string|email',
             'password' => 'required|string',
         ]);
 
-        $user = User::where('phone_number', $validated['phone_number'])->first();
+        $user = User::where('email', $validated['email'])->first();
         if (!$user || !Hash::check($validated['password'], $user->password_hash)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }

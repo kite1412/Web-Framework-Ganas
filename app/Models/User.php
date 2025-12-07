@@ -10,7 +10,7 @@ class User extends Authenticatable
 {
     use Notifiable, HasApiTokens;
 
-    protected $fillable = ['name', 'phone_number', 'password_hash'];
+    protected $fillable = ['name', 'email', 'password_hash'];
 
     protected $hidden = ['password_hash', 'remember_token'];
 
@@ -21,7 +21,7 @@ class User extends Authenticatable
 
     public function username()
     {
-        return 'phone_number';
+        return 'email';
     }
 
     public function projects() {

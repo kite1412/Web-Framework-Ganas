@@ -1,16 +1,15 @@
-import { ArrowLeft, Lock, Phone, User } from "lucide-react";
+import { Head } from "@inertiajs/react";
+import { ArrowLeft, Lock, Mail, User } from "lucide-react";
 import { useState } from "react";
 import useTheme from "../Components/useTheme";
 import api from "../api/client";
-import { Head } from "@inertiajs/react";
 
 export default function RegisterPage() {
   const { theme, mounted } = useTheme();
   const [fullName, setFullName] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [termsChecked, setTermsChecked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -28,16 +27,13 @@ export default function RegisterPage() {
       setError("Password dan konfirmasi password harus sama");
       return;
     }
-    if (!termsChecked) {
-      setError("Anda harus menyetujui Terms & Privacy");
-      return;
-    }
+    // removed Terms & Privacy requirement per request
 
     setLoading(true);
     try {
       await api.register({
         name: fullName,
-        phone_number: phoneNumber,
+        email: email,
         password,
       });
       // Navigate to login page
@@ -79,12 +75,12 @@ export default function RegisterPage() {
           </div>
 
           <div className={`flex items-center border rounded-lg p-3 focus-within:ring-2 focus-within:ring-[#4CAF50] transition-colors ${theme === "light" ? "border-gray-300" : "border-white/20"}`}>
-            <Phone className={`w-5 h-5 mr-3 ${theme === "light" ? "text-gray-400" : "text-white/50"}`} />
+            <Mail className={`w-5 h-5 mr-3 ${theme === "light" ? "text-gray-400" : "text-white/50"}`} />
             <input
-              type="tel"
-              placeholder="Nomor Telepon"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className={`w-full flex items-center border rounded-lg p-3 ${theme === "light" ? "text-gray-700" : "text-white bg-transparent"}`}
               required
             />

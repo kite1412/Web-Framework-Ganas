@@ -26,6 +26,7 @@ async function request(path, { method = "GET", body, headers = {} } = {}) {
   const res = await fetch(`${baseURL}${path}`, {
     method,
     headers: {
+      "Accept": "application/json",
       "Content-Type": "application/json",
       ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
       ...headers,

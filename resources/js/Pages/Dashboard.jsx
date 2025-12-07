@@ -51,7 +51,7 @@ export default function Dashboard() {
       const authUserStr = localStorage.getItem('auth_user');
       if (authUserStr) {
         const authUser = JSON.parse(authUserStr);
-        return authUser?.email || authUser?.phone_number || authUser?.name || '';
+        return authUser?.email || authUser?.name || '';
       }
     } catch {}
     return '';
@@ -77,7 +77,7 @@ export default function Dashboard() {
       const authUserStr = localStorage.getItem('auth_user');
       if (authUserStr) {
         const authUser = JSON.parse(authUserStr);
-        return authUser?.name || authUser?.phone_number || 'User';
+        return authUser?.name || authUser?.email || 'User';
       }
     } catch {}
     return localStorage.getItem('userName') || (resolvedUser ? (resolvedUser.split('@')[0] || resolvedUser) : 'User');
@@ -155,7 +155,7 @@ export default function Dashboard() {
       const authUserStr = localStorage.getItem('auth_user');
       if (authUserStr) {
         const authUser = JSON.parse(authUserStr);
-        const inferred = authUser?.name || authUser?.phone_number || (authUser?.email ? authUser.email.split('@')[0] : null) || localStorage.getItem('userName');
+        const inferred = authUser?.name || (authUser?.email ? authUser.email.split('@')[0] : null) || localStorage.getItem('userName');
         if (inferred) setDisplayName(inferred);
       } else {
         const fallbackName = localStorage.getItem('userName');
@@ -176,15 +176,16 @@ export default function Dashboard() {
           if (res.ok) {
             const user = await res.json();
             const name = user?.name || '';
-            const phone = user?.phone_number || '';
-            if (phone) {
-              localStorage.setItem('auth_user', JSON.stringify({ phone_number: phone }));
-              localStorage.setItem('userPhone', phone);
+            const email = user?.email || '';
+            if (email) {
+              // store id, name, and email so other flows (create task, projects) can use user_id
+              localStorage.setItem('auth_user', JSON.stringify({ id: user?.id, name: name, email: email }));
+              localStorage.setItem('userEmail', email);
             }
             if (name) {
               localStorage.setItem('userName', name);
             }
-            setDisplayName(name || phone || (resolvedUser ? (resolvedUser.split('@')[0] || resolvedUser) : 'User'));
+            setDisplayName(name || email || (resolvedUser ? (resolvedUser.split('@')[0] || resolvedUser) : 'User'));
           }
         }
       } catch (err) {}
@@ -212,7 +213,7 @@ export default function Dashboard() {
           const authUserStr = localStorage.getItem('auth_user');
           if (authUserStr) {
             const authUser = JSON.parse(authUserStr);
-            const inferred = authUser?.name || authUser?.phone_number || (authUser?.email ? authUser.email.split('@')[0] : null) || localStorage.getItem('userName');
+            const inferred = authUser?.name || (authUser?.email ? authUser.email.split('@')[0] : null) || localStorage.getItem('userName');
             setDisplayName(inferred || 'User');
           } else {
             setDisplayName(localStorage.getItem('userName') || 'User');
@@ -248,7 +249,7 @@ export default function Dashboard() {
       const authUserStr = localStorage.getItem('auth_user');
       if (authUserStr) {
         const authUser = JSON.parse(authUserStr);
-        const inferred = authUser?.name || authUser?.phone_number || (authUser?.email ? authUser.email.split('@')[0] : null) || localStorage.getItem('userName');
+        const inferred = authUser?.name || (authUser?.email ? authUser.email.split('@')[0] : null) || localStorage.getItem('userName');
         if (inferred) setDisplayName(inferred);
       }
     } catch {}
@@ -477,6 +478,8 @@ export default function Dashboard() {
         reminders,
       };
       const created = await api.tasks.create(payload);
+      console.log('Created task:', created);
+      console.log('Payload: ', payload);
       setTasks([created, ...tasks]);
       // Update per-project count badge
       setTaskCounts(prev => ({

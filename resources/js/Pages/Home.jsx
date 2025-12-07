@@ -82,11 +82,11 @@ export default function Home() {
               </div>
 
               <h1 className="text-[#1A1A1A] dark:text-white text-4xl font-bold">
-                Kelola tugas dengan mudah dan dapatkan pengingat WhatsApp tepat waktu.
+                Kelola tugas dengan mudah dan dapatkan pengingat Email tepat waktu.
               </h1>
 
               <p className="text-[#1A1A1A]/60 dark:text-white/60 text-lg leading-relaxed">
-                Tetap terorganisir dengan manajemen tugas yang cerdas, notifikasi WhatsApp real-time, dan kolaborasi yang lancar. 
+                Tetap terorganisir dengan manajemen tugas yang cerdas, notifikasi Email real-time, dan kolaborasi yang lancar. 
                 Jangan pernah melewatkan tenggat waktu lagi.
               </p>
 
@@ -172,7 +172,7 @@ export default function Home() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[{ icon: CheckCircle, title: "Manajemen Tugas", description: "Buat, edit, dan susun tugas dengan mudah. Atur prioritas dan tenggat waktu." },
-              { icon: Bell, title: "Pengingat WhatsApp", description: "Dapatkan notifikasi tepat waktu di WhatsApp sebelum tenggat tugas." },
+              { icon: Bell, title: "Pengingat Email", description: "Dapatkan notifikasi tepat waktu di Email sebelum tenggat tugas." },
               { icon: Share2, title: "Bagikan Tugas", description: "Bagikan daftar tugas dengan tim dan berkolaborasi secara efektif." },
               { icon: Clock, title: "Penjadwalan Pintar", description: "Pelacakan tenggat yang cerdas dengan hitung mundur dan peringatan." }
             ].map((feature, idx) => (
@@ -221,7 +221,7 @@ export default function Home() {
                 </span>
               </div>
               <p className="text-[#1A1A1A]/60 dark:text-white/60 text-sm leading-relaxed">
-                Platform manajemen tugas yang cerdas dengan notifikasi WhatsApp untuk membantu Anda tetap terorganisir.
+                Platform manajemen tugas yang cerdas dengan notifikasi Email untuk membantu Anda tetap terorganisir.
               </p>
               <div className="flex gap-3">
                 <a href="#" className="w-9 h-9 bg-[#F5F5F5] dark:bg-white/5 rounded-lg flex items-center justify-center hover:bg-[#4CAF50] dark:hover:bg-[#4CAF50] hover:text-white transition group">

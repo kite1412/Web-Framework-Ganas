@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Task;
 use App\Models\TaskReminder;
+use App\Jobs\SendTaskReminderJob;
 use Carbon\Carbon;
 
 class TaskService
@@ -13,12 +14,25 @@ class TaskService
         $task = Task::create($data);
 
         if(isset($data['reminders'])) {
+            // Parse client-local timestamps as Asia/Jakarta (UTC+7) and store/schedule in UTC
+            $clientTz = 'Asia/Jakarta';
             foreach($data['reminders'] as $remindTime) {
-                TaskReminder::create([
+                $remindAtLocal = Carbon::parse($remindTime, $clientTz);
+                $remindAtUtc = $remindAtLocal->copy()->setTimezone('UTC');
+                $reminder = TaskReminder::create([
                     'task_id' => $task->id,
-                    'remind_at' => Carbon::parse($remindTime),
+                    'remind_at' => $remindAtLocal,
                     'is_sent' => false
                 ]);
+
+                // Schedule a job for this reminder if it's in the future (compare in UTC)
+                try {
+                    if ($remindAtUtc->isFuture()) {
+                        dispatch((new SendTaskReminderJob($reminder->id))->delay($remindAtUtc));
+                    }
+                } catch (\Throwable $e) {
+                    // If scheduling fails, continue — reminder still persisted
+                }
             }
         }
 
@@ -49,17 +63,37 @@ class TaskService
                     // If object-like input is provided, normalize keys
                     $remindAt = $reminder['remind_at'] ?? ($reminder['time'] ?? null);
                     if ($remindAt) {
-                        $task->reminders()->create([
-                            'remind_at' => Carbon::parse($remindAt),
+                        $clientTz = 'Asia/Jakarta';
+                        $remindAtLocal = Carbon::parse($remindAt, $clientTz);
+                        $remindAtUtc = $remindAtLocal->copy()->setTimezone('UTC');
+                        $created = $task->reminders()->create([
+                            'remind_at' => $remindAtUtc,
                             'is_sent' => (bool)($reminder['is_sent'] ?? false),
                         ]);
+                        try {
+                            if ($remindAtUtc->isFuture()) {
+                                dispatch((new SendTaskReminderJob($created->id))->delay($remindAtUtc));
+                            }
+                        } catch (\Throwable $e) {
+                            // ignore scheduling errors
+                        }
                     }
                 } else {
                     // If plain timestamp string provided
-                    $task->reminders()->create([
-                        'remind_at' => Carbon::parse($reminder),
+                    $clientTz = 'Asia/Jakarta';
+                    $remindAtLocal = Carbon::parse($reminder, $clientTz);
+                    $remindAtUtc = $remindAtLocal->copy()->setTimezone('UTC');
+                    $created = $task->reminders()->create([
+                        'remind_at' => $remindAtUtc,
                         'is_sent' => false,
                     ]);
+                    try {
+                        if ($remindAtUtc->isFuture()) {
+                            dispatch((new SendTaskReminderJob($created->id))->delay($remindAtUtc));
+                        }
+                    } catch (\Throwable $e) {
+                        // ignore scheduling errors
+                    }
                 }
             }
         }
